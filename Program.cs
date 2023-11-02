@@ -5,8 +5,9 @@ using FlaUI.Core.Conditions;
 using FlaUI.Core.AutomationElements;
 using Serilog;
 using System.Configuration;
-using System.IO.Compression;
-using System.Diagnostics.Eventing.Reader;
+using System.Diagnostics;
+using Microsoft.Win32.TaskScheduler;
+using System.Text;
 
 namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
 {
@@ -20,21 +21,19 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
         static int step = 0;
         static string dtID = ConfigurationManager.AppSettings["dtID"];
         static string dtName = ConfigurationManager.AppSettings["dtName"];
-        static string appExe = ConfigurationManager.AppSettings["erpappnamepath"];
         static string LoginId = ConfigurationManager.AppSettings["loginId"];
         static string LoginPassword = ConfigurationManager.AppSettings["password"];
-        static string enableconsolelog = ConfigurationManager.AppSettings["enableconsolelog"].ToUpper();
-        static string issandbox = ConfigurationManager.AppSettings["uploadtosandbox"].ToUpper();
+        static string appExe = ConfigurationManager.AppSettings["erpappnamepath"];
         static string DBpath = ConfigurationManager.AppSettings["DBaddresspath"].ToUpper();
+        static string issandbox = ConfigurationManager.AppSettings["uploadtosandbox"].ToUpper();
+        static string enableconsolelog = ConfigurationManager.AppSettings["enableconsolelog"].ToUpper();
+        static string isrunbyscheduler = ConfigurationManager.AppSettings["isrunbywindowsscheduler"].ToUpper();
         static string appfolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + @"\Downloads\" + ConfigurationManager.AppSettings["appfolder"];
         static string uploadfolder = appfolder + @"\" + ConfigurationManager.AppSettings["uploadfolder"];
         static string sharingfolder = appfolder + @"\" + ConfigurationManager.AppSettings["sharingfolder"];
         //static string screenshotfolder = appfolder + @"\" + ConfigurationManager.AppSettings["screenshotfolder"];
         static string logfilename = "";
 
-        const int EXCELfile = 0;
-        const int LOGFile = 1;
-        const int ZIPFile = 2;
         const UInt32 WM_CLOSE = 0x0010;
 
         const int SALESREPORT = 0;
@@ -61,16 +60,18 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
         {
             try 
             {
-                DeleteSupportingFiles(appfolder, EXCELfile);
-                DeleteSupportingFiles(appfolder, LOGFile);
-                DeleteSupportingFiles(appfolder, ZIPFile);
-
+                var myFileUtil = new MyDirectoryManipulator();
                 if (!Directory.Exists(appfolder))
                 {
-                    Directory.CreateDirectory(appfolder);
-                    Directory.CreateDirectory(uploadfolder);
-                    Directory.CreateDirectory(sharingfolder);
+                    myFileUtil.CreateDirectory(appfolder);
+                    myFileUtil.CreateDirectory(uploadfolder);
+                    myFileUtil.CreateDirectory(sharingfolder);
                 }
+                myFileUtil.DeleteFiles(appfolder, MyDirectoryManipulator.FileExtension.Excel);
+                myFileUtil.DeleteFiles(appfolder, MyDirectoryManipulator.FileExtension.Log);
+                myFileUtil.DeleteFiles(appfolder, MyDirectoryManipulator.FileExtension.Zip);
+
+
                 var config = new LoggerConfiguration();
                 if (enableconsolelog == "Y")
                 {
@@ -80,23 +81,100 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 config.WriteTo.File(appfolder + Path.DirectorySeparatorChar + logfilename);
                 Log.Logger = config.CreateLogger();
 
-                Log.Information("Accurate Desktop ver.4 Automation -  by FAIRBANC");
+                Log.Information("iPOS ver.4 Automation - by FAIRBANC *** Started! *** ");
 
 
                 if (!OpenAppAndDBConfig())
                 {
-                    Log.Information("application automation failed !!");
+                    Log.Information("Application automation failed !!");
                     return;
                 }
             }
             catch (Exception ex) 
-            { }
-            finally { }
+            { Log.Information($"IPos automation error => {ex.ToString()}");  }
+            finally 
+            {
+                Log.Information("iPOS ver.4 Automation - *** END ***");
+                if (automationUIA3 != null)
+                {
+                    automationUIA3.Dispose();
+                }
+                Log.CloseAndFlush();
+            }
         }
 
         static bool OpenAppAndDBConfig()
         {
-            return true;
+            try
+            {
+                // Specify the path to your shortcut
+                string shortcutPath = @"C:\Users\iputeh\Desktop\iPos 4.0 Program Toko.lnk";
+                ProcessStartInfo startInfo = new ProcessStartInfo();
+                startInfo.FileName = shortcutPath;
+                startInfo.UseShellExecute = true;
+                startInfo.CreateNoWindow = false;
+
+                Process process = new Process();
+                process.StartInfo = startInfo;
+                //process.Start();
+
+                Thread.Sleep(15000);
+
+                try
+                {
+                    appx = Application.Launch(process.StartInfo);
+                    DesktopWindow = appx.GetMainWindow(automationUIA3);
+                }
+                catch { }
+                //* Wait until Accurate window ready
+                Thread.Sleep(15000);
+                
+                //FlaUI.Core.Input.Wait.UntilResponsive(DesktopWindow.FindFirstChild(),TimeSpan.FromSeconds(4));
+                //appx.Close();
+
+                return true;
+            }
+            catch
+            {
+                if (appx.ProcessId != null)
+                {
+                    appx.Close();
+                }
+                return false;
+            }
+        }
+
+        private static bool RunIPOSByScheduler()
+        {
+            try
+            {
+                // Create a scheduled task to run your application with elevated privileges
+                using (TaskService ts = new TaskService())
+                {
+                    TaskDefinition td = ts.NewTask();
+                    td.RegistrationInfo.Description = "FAIRBANC - Run iPos application for automation using FlaUI";
+
+                    td.Principal.RunLevel = TaskRunLevel.Highest; // Run with highest privileges
+
+                    td.Triggers.Add(new TimeTrigger { StartBoundary = DateTime.Now + TimeSpan.FromSeconds(10) }); // Specify the start time of the task
+
+                    td.Actions.Add(new ExecAction($"{appExe}", null, null)); // Specify the path to your application
+
+                    ts.RootFolder.RegisterTaskDefinition("FAIRBANC - Run iPos application for automation", td); // Register the task in the root folder
+                }
+
+                // Wait for the task to start
+                System.Threading.Thread.Sleep(TimeSpan.FromSeconds(15));
+
+                // Attach FlaUI to the running process
+                appx = Application.AttachOrLaunch(new ProcessStartInfo($"{appExe}"));
+
+                return true;
+            }
+            catch { 
+                return false;
+                throw;
+            }
         }
     }
 }

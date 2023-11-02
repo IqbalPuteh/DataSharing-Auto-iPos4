@@ -1,31 +1,29 @@
 ﻿using System;
 using System.IO;
-using System.Diagnostics;
-using System.Runtime.CompilerServices;
+using Windows.System.Profile;
 
 public abstract class DirectoryManipulator
 {
-    private string _status;
-
-    public string Status
+    public enum FileExtension
     {
-        get { return _status; }
-        //private set { _status = value; }
+        Excel,
+        Log,
+        Zip
     }
 
-    private void SetStatus(string status)
+
+
+    public virtual string CreateDirectory(string path)
     {
-        _status = status;
-    }
-    public virtual void CreateDirectoryIfNotExist(string path)
-    {
-        if (!Directory.Exists(path))
+        if (Directory.Exists(path))
         {
-            Directory.CreateDirectory(path);
+            return "";
         }
+        Directory.CreateDirectory(path);
+        return path;
     }
 
-    public virtual void DeleteFiles(string path, string extension)
+    public virtual string DeleteFilesBase(string path, string extension)
     {
         DirectoryInfo directory = new DirectoryInfo(path);
         foreach (FileInfo file in directory.GetFiles($"*.{extension}"))
@@ -34,67 +32,85 @@ public abstract class DirectoryManipulator
         }
         foreach (DirectoryInfo subDirectory in directory.GetDirectories())
         {
-            DeleteFiles(subDirectory.FullName, extension);
+            DeleteFilesBase(subDirectory.FullName, extension);
         }
+        return "";
     }
 
 
-    public virtual void ZipDirectory(string sourcePath, string destinationPath)
+    public virtual string ZipDirectory(string sourcePath, string destinationPath)
     {
-        ProcessStartInfo startInfo = new ProcessStartInfo();
-        startInfo.FileName = "7z.exe";
-        startInfo.Arguments = $"a -tzip \"{destinationPath}\" \"{sourcePath}\" -mx=9";
-        startInfo.WindowStyle = ProcessWindowStyle.Hidden;
-        Process process = new Process();
-        process.StartInfo = startInfo;
-        process.Start();
-        process.WaitForExit();
+        //ProcessStartInfo startInfo = new ProcessStartInfo();
+        //startInfo.FileName = "7z.exe";
+        //startInfo.Arguments = $"a -tzip \"{destinationPath}\" \"{sourcePath}\" -mx=9";
+        //startInfo.WindowStyle = ProcessWindowStyle.Hidden;
+        //Process process = new Process();
+        //process.StartInfo = startInfo;
+        //process.Start();
+        //process.WaitForExit();
+        return "";
     }
 
-    public virtual void SendFileToUrl(string filePath, string url)
+    public virtual string SendFileToUrl(string filePath, string url)
     {
-        ProcessStartInfo startInfo = new ProcessStartInfo();
-        startInfo.FileName = "curl.exe";
-        startInfo.Arguments = $"-F \"file=@{filePath}\" \"{url}\"";
-        startInfo.WindowStyle = ProcessWindowStyle.Hidden;
-        Process process = new Process();
-        process.StartInfo = startInfo;
-        process.Start();
-        process.WaitForExit();
+        //ProcessStartInfo startInfo = new ProcessStartInfo();
+        //startInfo.FileName = "curl.exe";
+        //startInfo.Arguments = $"-F \"file=@{filePath}\" \"{url}\"";
+        //startInfo.WindowStyle = ProcessWindowStyle.Hidden;
+        //Process process = new Process();
+        //process.StartInfo = startInfo;
+        //process.Start();
+        //process.WaitForExit();
+        return "";
         
     }
 
 }
-public class MyDirectoryManipulator : DirectoryManipulator
+public class  MyDirectoryManipulator : DirectoryManipulator
 {
-    
-    public override void CreateDirectoryIfNotExist(string path)
+   
+
+    public override string CreateDirectory(string path)
     {
-        // Implement your own logic here
-        Console.WriteLine($"Creating directory at {path}");
-        base.CreateDirectoryIfNotExist(path);
+        var value = base.CreateDirectory(path)  == "" ? "" : $"Creating directory at {path}";
+        return value;
+
     }
 
-    public override void DeleteFiles(string path, string extension)
+    public string DeleteFiles(string path, FileExtension fileExtension)
     {
-        // Implement your own logic here
-        Console.WriteLine($"Deleting files with extension {extension} in {path}");
-        base.DeleteFiles(path, extension);
+        string extension = string.Empty;
+
+        switch (fileExtension)
+        {
+            case FileExtension.Excel:
+                extension = ".xl*";
+                break;
+            case FileExtension.Log:
+                extension = ".log";
+                break;
+            case FileExtension.Zip:
+                extension = ".zip";
+                break;
+        }
+        base.DeleteFilesBase(path, extension);
+        return ($"Deleting files with extension {extension} in {path}");
     }
 
-    public override void ZipDirectory(string sourcePath, string destinationPath)
+    public override string ZipDirectory(string sourcePath, string destinationPath)
     {
-        // Implement your own logic here
-        Console.WriteLine($"Zipping directory at {sourcePath} to {destinationPath}");
         base.ZipDirectory(sourcePath, destinationPath);
+        return ($"Zipping directory at {sourcePath} to {destinationPath}");
     }
 
-    public override void SendFileToUrl(string filePath, string url)
+    public override string SendFileToUrl(string filePath, string url)
     {
-        // Implement your own logic here
-        Console.WriteLine($"Sending file at {filePath} to {url}");
         base.SendFileToUrl(filePath, url);
+        return ($"Sending file at {filePath} to {url}");
+
     }
 }
+
+
 
 
