@@ -2,19 +2,19 @@
 using FlaUI.Core;
 using FlaUI.UIA3;
 using FlaUI.Core.Conditions;
+using FlaUI.Core.Definitions;
 using FlaUI.Core.AutomationElements;
+using FlaUI.Core.Input;
 using Serilog;
 using System.Configuration;
 using System.Diagnostics;
-using Microsoft.Win32.TaskScheduler;
-using System.Text;
 
 namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
 {
     internal class Program
     {
         static Application appx;
-        static Window DesktopWindow;
+        static Window AuAppMainWindow;
         static UIA3Automation automationUIA3 = new UIA3Automation();
         static ConditionFactory cf = new ConditionFactory(new UIA3PropertyLibrary());
         static AutomationElement window = automationUIA3.GetDesktop();
@@ -107,6 +107,8 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
         {
             try
             {
+                var functionname = "OpenAppAndDBConfig";
+                int steps = 0;
                 // Specify the path to your shortcut
                 string shortcutPath = @"C:\Users\iputeh\Desktop\iPos 4.0 Program Toko.lnk";
                 ProcessStartInfo startInfo = new ProcessStartInfo();
@@ -123,14 +125,28 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 try
                 {
                     appx = Application.Launch(process.StartInfo);
-                    DesktopWindow = appx.GetMainWindow(automationUIA3);
+                    AuAppMainWindow = appx.GetMainWindow(automationUIA3);
                 }
-                catch { }
+                catch { Log.Information($"[OpenAppAndDBConfig ]Error ketika mebuka mmnghandle iPos window process..."); }
                 //* Wait until Accurate window ready
                 Thread.Sleep(15000);
-                
                 //FlaUI.Core.Input.Wait.UntilResponsive(DesktopWindow.FindFirstChild(),TimeSpan.FromSeconds(4));
-                //appx.Close();
+
+                //* Picking db server location
+                //* Find iPos main screen
+                var checkingele = "";
+                var ele = AuAppMainWindow.FindFirstChild(cf => cf.ByName("Koneksi Database"));
+                checkingele = CheckingEle(ele, step+= 1 , functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+                ele.SetForeground();
+
+                ele = ele.FindFirstChild (cf => cf.ByAutomationId("butServer", PropertyConditionFlags.None));
+                checkingele = CheckingEle(ele, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+                ele.AsButton().Focus();
+                ele.AsButton().Invoke();
+
+
 
                 return true;
             }
@@ -144,38 +160,12 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
             }
         }
 
-        private static bool RunIPOSByScheduler()
+        private static string CheckingEle(AutomationElement ?ele, int steps, string functionname)
         {
-            try
-            {
-                // Create a scheduled task to run your application with elevated privileges
-                using (TaskService ts = new TaskService())
-                {
-                    TaskDefinition td = ts.NewTask();
-                    td.RegistrationInfo.Description = "FAIRBANC - Run iPos application for automation using FlaUI";
-
-                    td.Principal.RunLevel = TaskRunLevel.Highest; // Run with highest privileges
-
-                    td.Triggers.Add(new TimeTrigger { StartBoundary = DateTime.Now + TimeSpan.FromSeconds(10) }); // Specify the start time of the task
-
-                    td.Actions.Add(new ExecAction($"{appExe}", null, null)); // Specify the path to your application
-
-                    ts.RootFolder.RegisterTaskDefinition("FAIRBANC - Run iPos application for automation", td); // Register the task in the root folder
-                }
-
-                // Wait for the task to start
-                System.Threading.Thread.Sleep(TimeSpan.FromSeconds(15));
-
-                // Attach FlaUI to the running process
-                appx = Application.AttachOrLaunch(new ProcessStartInfo($"{appExe}"));
-
-                return true;
-            }
-            catch { 
-                return false;
-                throw;
-            }
+            var value = ele == null ? $"Automation error on #{steps} in function {functionname}..." : $"";
+            return value;
         }
+
     }
 }
     
