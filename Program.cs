@@ -83,14 +83,19 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 Log.Information("iPOS ver.4 Automation - by FAIRBANC *** Started! *** ");
 
 
-                if (!OpenAppAndDBConfig())
+                //if (!OpenAppAndDBConfig())
+                //{
+                //    Log.Information("Application automation failed when configure database (OpenAppAndDBConfig) !!!");
+                //    return;
+                //}
+                //if (!LoginApp())
+                //{
+                //    Log.Information("Application automation failed when login to app (loginApp) !!!");
+                //    return;
+                //}
+                if (!OpenSalesReport())
                 {
-                    Log.Information("Application automation failed when configure database (OpenAppAndDBConfig) !!!");
-                    return;
-                }
-                if(!LoginApp())
-                {
-                    Log.Information("Application automation failed when login to app (loginApp) !!!");
+                    Log.Information("Application automation failed when login to app (OpenSalesReport) !!!");
                     return;
                 }
             }
@@ -113,7 +118,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
             int steps = 0;
             try
             {
-                
+
                 // Specify the path to your shortcut
                 string shortcutPath = @"C:\Users\iputeh\Desktop\iPos 4.0 Program Toko.lnk";
                 ProcessStartInfo startInfo = new ProcessStartInfo();
@@ -132,7 +137,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                     appx = Application.Launch(process.StartInfo);
                     AuAppMainWindow = appx.GetMainWindow(automationUIA3);
                 }
-                catch { Log.Information($"[OpenAppAndDBConfig ]Error ketika mebuka mmnghandle iPos window process..."); }
+                catch { Log.Information($"[{functionname}] Error ketika mebuka mmnghandle iPos window process..."); }
                 //* Wait until Accurate window ready
                 Thread.Sleep(15000);
                 //FlaUI.Core.Input.Wait.UntilResponsive(DesktopWindow.FindFirstChild(),TimeSpan.FromSeconds(4));
@@ -169,7 +174,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 ele.AsButton().Focus();
                 Thread.Sleep(1000);
                 MouseClickaction(ele);
-;
+                ;
                 ele = ParentEle.FindFirstChild(cf => cf.ByName("Cari Database"));
                 checkingele = CheckingEle(ele, step += 1, functionname);
                 if (checkingele != "") { Log.Information(checkingele); return false; }
@@ -181,7 +186,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 var listele = ParentEle.FindFirstChild(cf => cf.ByAutomationId("lDatabase")).AsListBox();
                 checkingele = CheckingEle(ele, step += 1, functionname);
                 if (checkingele != "") { Log.Information(checkingele); return false; }
-                Thread.Sleep(1000); 
+                Thread.Sleep(1000);
                 listele.AsListBox().Items[0].Click();
 
                 ele = ParentEle.FindFirstChild(cf => cf.ByName("Pilih"));
@@ -197,8 +202,9 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 {
                     appx.Close();
                 }
-                return false;
                 Log.Information($"Error when executing {functionname} => {ex.Message}");
+                return false;
+
             }
         }
 
@@ -216,33 +222,39 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
             {
                 //* Picking form login main window
                 var checkingele = "";
-                var ParentEle = AuAppMainWindow.FindFirstChild(cf => cf.ByName("Login"));
+
+                var ParentEle = window.FindFirstDescendant(cf => cf.ByName("i P o s", PropertyConditionFlags.MatchSubstring));
+                ParentEle = ParentEle.FindFirstChild(cf => cf.ByName("Login"));
                 checkingele = CheckingEle(ParentEle, step += 1, functionname);
                 if (checkingele != "") { Log.Information(checkingele); return false; }
                 ParentEle.SetForeground();
+                Thread.Sleep(1000);
 
                 //tUser
                 var ele = ParentEle.FindFirstDescendant(cf => cf.ByAutomationId("tUser", PropertyConditionFlags.None));
                 checkingele = CheckingEle(ele, step += 1, functionname);
                 if (checkingele != "") { Log.Information(checkingele); return false; }
                 ele.AsTextBox().Enter(LoginId);
+                Thread.Sleep(1000);
 
                 //tPassword
                 ele = ParentEle.FindFirstDescendant(cf => cf.ByAutomationId("tPassword", PropertyConditionFlags.None));
                 checkingele = CheckingEle(ele, step += 1, functionname);
                 if (checkingele != "") { Log.Information(checkingele); return false; }
                 ele.AsTextBox().Enter(LoginPassword);
+                Thread.Sleep(1000);
 
                 ele = ParentEle.FindFirstChild(cf => cf.ByName("Masuk"));
                 ele.AsButton().Focus();
                 Thread.Sleep(1000);
-                MouseClickaction(ele);
-                //ele.AsButton().Click();
+                ele.AsButton().Invoke();
+                //MouseClickaction(ele);
+
                 return true;
             }
             catch (Exception ex)
             {
-                Log.Information(ex.Message);
+                Log.Information($"Error when executing {functionname} => {ex.Message}");
                 return false;
             }
         }
@@ -252,13 +264,82 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
             try
             {
                 var elecornerpos = ele.GetClickablePoint();
-                Mouse.MoveTo(elecornerpos.X, elecornerpos.Y);
+                Mouse.MoveTo(elecornerpos.X + 2, elecornerpos.Y + 2);
                 Mouse.Click();
                 return true;
             }
             catch (Exception ex)
             {
                 Log.Information($"Error when executing mouse click action on element {ele.AutomationId} => {ex.Message}");
+                return false;
+            }
+        }
+
+        private static bool OpenSalesReport()
+        {
+            var functionname = "OpenSalesReport";
+            int steps = 0;
+            try
+            {
+                //* Picking form iPos 4 main windows
+                var checkingele = "";
+                var ParentEle = window.FindFirstDescendant(cf => cf.ByName("i P o s", PropertyConditionFlags.MatchSubstring));
+                while (!ParentEle.Name.ToLower().Contains(LoginId.ToLower()))
+                {
+                    Thread.Sleep(2000);
+                }
+                //return true;
+
+                //Ribbon Tabs
+                ParentEle = ParentEle.FindFirstDescendant(cf => cf.ByName("The Ribbon"));
+                checkingele = CheckingEle(ParentEle, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+                //ParentEle.SetForeground();
+
+                //Ribbon Tabs
+                var ele = ParentEle.FindFirstDescendant(cf => cf.ByName("Ribbon Tabs"));
+                checkingele = CheckingEle(ele, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+                ele.Focus();
+                Thread.Sleep(500);
+
+                //Penjualan
+                ele = ele.FindFirstDescendant(cf => cf.ByName("Laporan"));
+                checkingele = CheckingEle(ele, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+                ParentEle.SetForeground();
+                MouseClickaction(ele);
+                Thread.Sleep(1000);
+
+                //Traversing to "Lower Ribbon" from Parent Element "The Ribbon"
+                ele = ParentEle.FindFirstDescendant(cf => cf.ByName("Lower Ribbon"));
+                checkingele = CheckingEle(ele, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+
+                //Penjualan toolbar
+                ele = ele.FindFirstDescendant(cf => cf.ByName("Penjualan"));
+                checkingele = CheckingEle(ele, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+
+                //(This is) "Laporan Penjualan" toolbar
+                ele = ele.FindFirstDescendant(cf => cf.ByName("Laporan Penjualan"));
+                checkingele = CheckingEle(ele, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+                ParentEle.SetForeground();
+                MouseClickaction(ele);
+                Thread.Sleep(1000);
+
+                //(This is) "Laporan Penjualan" button
+                ele = ele.FindFirstDescendant(cf => cf.ByName("Laporan Penjualan"));
+                checkingele = CheckingEle(ele, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+                MouseClickaction(ele);
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Information($"Error when executing {functionname} => {ex.Message}");
                 return false;
             }
         }
