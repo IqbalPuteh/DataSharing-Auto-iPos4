@@ -3,17 +3,17 @@ using FlaUI.Core;
 using FlaUI.UIA3;
 using FlaUI.Core.Conditions;
 using FlaUI.Core.Definitions;
-using FlaUI.Core.AutomationElements;
 using FlaUI.Core.Input;
 using Serilog;
 using System.Configuration;
 using System.Diagnostics;
+using FlaUI.Core.AutomationElements;
 
 namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
 {
     internal class Program
     {
-        static Application appx;
+        static FlaUI.Core.Application appx;
         static Window AuAppMainWindow;
         static UIA3Automation automationUIA3 = new UIA3Automation();
         static ConditionFactory cf = new ConditionFactory(new UIA3PropertyLibrary());
@@ -24,10 +24,9 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
         static string LoginId = ConfigurationManager.AppSettings["loginId"];
         static string LoginPassword = ConfigurationManager.AppSettings["password"];
         static string appExe = ConfigurationManager.AppSettings["erpappnamepath"];
-        static string DBpath = ConfigurationManager.AppSettings["DBaddresspath"].ToUpper();
+        static string dbserveraddr = ConfigurationManager.AppSettings["dbserveraddress"].ToUpper();
         static string issandbox = ConfigurationManager.AppSettings["uploadtosandbox"].ToUpper();
         static string enableconsolelog = ConfigurationManager.AppSettings["enableconsolelog"].ToUpper();
-        static string isrunbyscheduler = ConfigurationManager.AppSettings["isrunbywindowsscheduler"].ToUpper();
         static string appfolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + @"\Downloads\" + ConfigurationManager.AppSettings["appfolder"];
         static string uploadfolder = appfolder + @"\" + ConfigurationManager.AppSettings["uploadfolder"];
         static string sharingfolder = appfolder + @"\" + ConfigurationManager.AppSettings["sharingfolder"];
@@ -58,7 +57,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
 
         static void Main(string[] args)
         {
-            try 
+            try
             {
                 var myFileUtil = new MyDirectoryManipulator();
                 if (!Directory.Exists(appfolder))
@@ -86,13 +85,18 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
 
                 if (!OpenAppAndDBConfig())
                 {
-                    Log.Information("Application automation failed !!");
+                    Log.Information("Application automation failed when configure database (OpenAppAndDBConfig) !!!");
+                    return;
+                }
+                if(!LoginApp())
+                {
+                    Log.Information("Application automation failed when login to app (loginApp) !!!");
                     return;
                 }
             }
-            catch (Exception ex) 
-            { Log.Information($"IPos automation error => {ex.ToString()}");  }
-            finally 
+            catch (Exception ex)
+            { Log.Information($"IPos automation error => {ex.ToString()}"); }
+            finally
             {
                 Log.Information("iPOS ver.4 Automation - *** END ***");
                 if (automationUIA3 != null)
@@ -105,10 +109,11 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
 
         static bool OpenAppAndDBConfig()
         {
+            var functionname = "OpenAppAndDBConfig";
+            int steps = 0;
             try
             {
-                var functionname = "OpenAppAndDBConfig";
-                int steps = 0;
+                
                 // Specify the path to your shortcut
                 string shortcutPath = @"C:\Users\iputeh\Desktop\iPos 4.0 Program Toko.lnk";
                 ProcessStartInfo startInfo = new ProcessStartInfo();
@@ -132,38 +137,130 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 Thread.Sleep(15000);
                 //FlaUI.Core.Input.Wait.UntilResponsive(DesktopWindow.FindFirstChild(),TimeSpan.FromSeconds(4));
 
-                //* Picking db server location
-                //* Find iPos main screen
+                //* Picking Koneksi Database main window
                 var checkingele = "";
-                var ele = AuAppMainWindow.FindFirstChild(cf => cf.ByName("Koneksi Database"));
-                checkingele = CheckingEle(ele, step+= 1 , functionname);
+                var ParentEle = AuAppMainWindow.FindFirstChild(cf => cf.ByName("Koneksi Database"));
+                checkingele = CheckingEle(ParentEle, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+                ParentEle.SetForeground();
+
+                var ele = ParentEle.FindFirstChild(cf => cf.ByAutomationId("butServer", PropertyConditionFlags.None));
+                checkingele = CheckingEle(ele, step += 1, functionname);
                 if (checkingele != "") { Log.Information(checkingele); return false; }
                 ele.SetForeground();
+                //ele.Click();
+                //* check coordinates and try mouse click on the coordinates
+                MouseClickaction(ele);
 
-                ele = ele.FindFirstChild (cf => cf.ByAutomationId("butServer", PropertyConditionFlags.None));
+                //^ Traversing to 'lstData' descendant element from 'Koneksi Database' element
+                ele = ParentEle.FindFirstDescendant(cf => cf.ByAutomationId("lstData", PropertyConditionFlags.None));
+                checkingele = CheckingEle(ele, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+
+                //* Looking at 'lstData' items, and selecting server name base on item name
+                ele = ele.FindFirstDescendant(cf => cf.ByName(dbserveraddr));
+                checkingele = CheckingEle(ele, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+                ele.Click();
+
+                ele = ParentEle.FindFirstDescendant(cf => cf.ByName("Pilih"));
                 checkingele = CheckingEle(ele, step += 1, functionname);
                 if (checkingele != "") { Log.Information(checkingele); return false; }
                 ele.AsButton().Focus();
-                ele.AsButton().Invoke();
+                Thread.Sleep(1000);
+                MouseClickaction(ele);
+;
+                ele = ParentEle.FindFirstChild(cf => cf.ByName("Cari Database"));
+                checkingele = CheckingEle(ele, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+                ele.AsButton().Focus();
+                Thread.Sleep(1000);
+                MouseClickaction(ele);
 
+                //* Traversing to 'lDatabase' element from 'Koneksi Database' element
+                var listele = ParentEle.FindFirstChild(cf => cf.ByAutomationId("lDatabase")).AsListBox();
+                checkingele = CheckingEle(ele, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+                Thread.Sleep(1000); 
+                listele.AsListBox().Items[0].Click();
 
+                ele = ParentEle.FindFirstChild(cf => cf.ByName("Pilih"));
+                ele.AsButton().Focus();
+                Thread.Sleep(1000);
+                MouseClickaction(ele);
 
                 return true;
             }
-            catch
+            catch (Exception ex)
             {
                 if (appx.ProcessId != null)
                 {
                     appx.Close();
                 }
                 return false;
+                Log.Information($"Error when executing {functionname} => {ex.Message}");
             }
         }
 
-        private static string CheckingEle(AutomationElement ?ele, int steps, string functionname)
+        private static string CheckingEle(AutomationElement? ele, int steps, string functionname)
         {
             var value = ele == null ? $"Automation error on #{steps} in function {functionname}..." : $"";
             return value;
+        }
+
+        private static bool LoginApp()
+        {
+            var functionname = "LoginApp";
+            int steps = 0;
+            try
+            {
+                //* Picking form login main window
+                var checkingele = "";
+                var ParentEle = AuAppMainWindow.FindFirstChild(cf => cf.ByName("Login"));
+                checkingele = CheckingEle(ParentEle, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+                ParentEle.SetForeground();
+
+                //tUser
+                var ele = ParentEle.FindFirstDescendant(cf => cf.ByAutomationId("tUser", PropertyConditionFlags.None));
+                checkingele = CheckingEle(ele, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+                ele.AsTextBox().Enter(LoginId);
+
+                //tPassword
+                ele = ParentEle.FindFirstDescendant(cf => cf.ByAutomationId("tPassword", PropertyConditionFlags.None));
+                checkingele = CheckingEle(ele, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+                ele.AsTextBox().Enter(LoginPassword);
+
+                ele = ParentEle.FindFirstChild(cf => cf.ByName("Masuk"));
+                ele.AsButton().Focus();
+                Thread.Sleep(1000);
+                MouseClickaction(ele);
+                //ele.AsButton().Click();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Information(ex.Message);
+                return false;
+            }
+        }
+
+        private static bool MouseClickaction(AutomationElement ele)
+        {
+            try
+            {
+                var elecornerpos = ele.GetClickablePoint();
+                Mouse.MoveTo(elecornerpos.X, elecornerpos.Y);
+                Mouse.Click();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Information($"Error when executing mouse click action on element {ele.AutomationId} => {ex.Message}");
+                return false;
+            }
         }
 
     }
