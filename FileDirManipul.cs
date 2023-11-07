@@ -111,6 +111,47 @@ public class  MyDirectoryManipulator : DirectoryManipulator
     }
 }
 
+public class MyDateManipulator
+{
+    private static string GetPrevMonth()
+    {
+        return DateTime.Now.AddMonths(-1).ToString("MM");
+    }
+
+    private static string GetPrevYear()
+    {
+        return DateTime.Now.AddMonths(-1).ToString("yyyy");
+    }
+
+
+    private static string GetFirstDate()
+    {
+        return "01";
+    }
+
+
+    public static string GetDateFrom()
+    {
+        return $@"{GetFirstDate}/{GetPrevMonth}/{GetPrevYear} 00:00";
+    }
+
+    public static string GetDateTo()
+    {
+        return $@"{GetLastDayOfPrevMonth}/{GetPrevMonth}/{GetPrevYear} 00:00";
+    }
+
+    public static string GetDSPeriod()
+    {
+        return $@"{GetPrevYear}{GetPrevMonth}";
+    }
+
+    private static string GetLastDayOfPrevMonth()
+    {
+        var lastDay = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).AddDays(-1);
+        return lastDay.ToString("dd");
+    }
+}
+
 
 
 
