@@ -1,27 +1,25 @@
 ﻿using System;
+using System.Diagnostics;
+using System.Configuration;
+using System.Runtime.InteropServices;
 using FlaUI.Core;
 using FlaUI.UIA3;
+using FlaUI.Core.Input;
 using FlaUI.Core.Conditions;
 using FlaUI.Core.Definitions;
-using FlaUI.Core.Input;
-using Serilog;
-using System.Configuration;
-using System.Diagnostics;
 using FlaUI.Core.AutomationElements;
-using System.Runtime.InteropServices;
-using System.Windows.Forms;
-using Application = FlaUI.Core.Application;
+using Serilog;
+using static System.Windows.Forms.Design.AxImporter;
 
 namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
 {
     internal class Program
     {
-        static FlaUI.Core.Application appx;
+        static Application appx;
         static Window AuAppMainWindow;
         static UIA3Automation automationUIA3 = new UIA3Automation();
         static ConditionFactory cf = new ConditionFactory(new UIA3PropertyLibrary());
         static AutomationElement window = automationUIA3.GetDesktop();
-        static int step = 0;
         static string dtID = ConfigurationManager.AppSettings["dtID"];
         static string dtName = ConfigurationManager.AppSettings["dtName"];
         static string LoginId = ConfigurationManager.AppSettings["loginId"];
@@ -66,7 +64,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
         {
             try
             {
-                // Call this method to disable keyboard input
+                //* Call this method to disable keyboard input
                 BlockInput(true);
 
                 var myFileUtil = new MyDirectoryManipulator();
@@ -76,9 +74,9 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                     myFileUtil.CreateDirectory(uploadfolder);
                     myFileUtil.CreateDirectory(sharingfolder);
                 }
-                myFileUtil.DeleteFiles(appfolder, MyDirectoryManipulator.FileExtension.Excel);
-                myFileUtil.DeleteFiles(appfolder, MyDirectoryManipulator.FileExtension.Log);
-                myFileUtil.DeleteFiles(appfolder, MyDirectoryManipulator.FileExtension.Zip);
+                Console.WriteLine(myFileUtil.DeleteFiles(appfolder, MyDirectoryManipulator.FileExtension.Excel));
+                Console.WriteLine(myFileUtil.DeleteFiles(appfolder, MyDirectoryManipulator.FileExtension.Log));
+                Console.WriteLine(myFileUtil.DeleteFiles(appfolder, MyDirectoryManipulator.FileExtension.Zip));
 
 
                 var config = new LoggerConfiguration();
@@ -95,12 +93,12 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
 
                 //if (!OpenAppAndDBConfig())
                 //{
-                //    Log.Information("Application automation failed when running app (OpenAppAndDBConfig) !!!");
+                //    Log.Information("application automation failed when running app (openappanddbconfig) !!!");
                 //    return;
                 //}
                 //if (!LoginApp())
                 //{
-                //    Log.Information("Application automation failed when running app (loginApp) !!!");
+                //    Log.Information("application automation failed when running app (loginapp) !!!");
                 //    return;
                 //}
                 if (!OpenSalesReport())
@@ -118,7 +116,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
             { Log.Information($"IPos automation error => {ex.ToString()}"); }
             finally
             {
-                // Call this method to enable keyboard input
+                //* Call this method to enable keyboard input
                 BlockInput(false);
 
                 Log.Information("iPOS ver.4 Automation - *** END ***");
@@ -133,7 +131,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
         static bool OpenAppAndDBConfig()
         {
             var functionname = "OpenAppAndDBConfig";
-            int steps = 0;
+            int step = 0;
             try
             {
 
@@ -171,7 +169,6 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 checkingele = CheckingEle(ele, step += 1, functionname);
                 if (checkingele != "") { Log.Information(checkingele); return false; }
                 ele.SetForeground();
-                //ele.Click();
                 //* check coordinates and try mouse click on the coordinates
                 MouseClickaction(ele);
 
@@ -235,7 +232,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
         private static bool LoginApp()
         {
             var functionname = "LoginApp";
-            int steps = 0;
+            int step = 0;
             try
             {
                 //* Picking form login main window
@@ -296,7 +293,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
         private static bool OpenSalesReport()
         {
             var functionname = "OpenSalesReport";
-            int steps = 0;
+            int step = 0;
             try
             {
                 //* Picking form iPos 4 main windows
@@ -306,7 +303,6 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 {
                     Thread.Sleep(2000);
                 }
-                //return true;
 
                 //Ribbon Tabs
                 ParentEle = ParentEle.FindFirstDescendant(cf => cf.ByName("The Ribbon"));
@@ -365,14 +361,31 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
         static bool SendingReportParam()
         {
             var functionname = "SendingReportParam";
-            int steps = 0;
+            int step = 0;
             try
             {
+                Thread.Sleep(5000);
                 //* Picking iPos main window
-                var checkingele = "";
+                //var ParentEle = AuAppMainWindow.Parent.FindFirstDescendant(cf => cf.ByName("i P o s", PropertyConditionFlags.MatchSubstring));
 
-                var ParentEle = window.FindFirstDescendant(cf => cf.ByName("i P o s", PropertyConditionFlags.MatchSubstring));
-                checkingele = CheckingEle(ParentEle, step += 1, functionname);
+                AutomationElement ParentEle;
+                if (AuAppMainWindow == null || AuAppMainWindow is null)
+                {
+                    var au = new UIA3Automation();
+                    ParentEle = window.FindFirstDescendant(cf => cf.ByName("i P o s", PropertyConditionFlags.MatchSubstring));
+                }
+                else
+                { ParentEle = AuAppMainWindow.Parent.FindFirstDescendant(cf => cf.ByName("i P o s", PropertyConditionFlags.MatchSubstring)); }
+                    for (int i = 1; i <= 120; i += 1) // ==> keep looking 'Preview' window for 10 minutes
+                {
+                    if (ParentEle != null)
+                    {
+                        break;
+                    }
+                    Thread.Sleep(5000);
+                }
+                
+                var checkingele = CheckingEle(ParentEle, step += 1, functionname);
                 if (checkingele != "") { Log.Information(checkingele); return false; }
                 ParentEle.SetForeground();
 
@@ -410,22 +423,21 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 Keyboard.Press(FlaUI.Core.WindowsAPI.VirtualKeyShort.LEFT);
                 Thread.Sleep(500);
                 Keyboard.Press(FlaUI.Core.WindowsAPI.VirtualKeyShort.LEFT);
-                SendKeys.SendWait("01");
+                ele.AsTextBox().Enter("01");
                 Thread.Sleep(500);
                 Keyboard.Press(FlaUI.Core.WindowsAPI.VirtualKeyShort.RIGHT);
                 Thread.Sleep(500);
-                SendKeys.SendWait("01");
+                ele.AsTextBox().Enter("01");
+                Keyboard.Press(FlaUI.Core.WindowsAPI.VirtualKeyShort.RIGHT);
+                Thread.Sleep(500);
+                ele.AsTextBox().Enter("2023");
                 Thread.Sleep(500);
                 Keyboard.Press(FlaUI.Core.WindowsAPI.VirtualKeyShort.RIGHT);
                 Thread.Sleep(500);
-                SendKeys.SendWait("2000");
+                ele.AsTextBox().Enter("00");
                 Thread.Sleep(500);
                 Keyboard.Press(FlaUI.Core.WindowsAPI.VirtualKeyShort.RIGHT);
-                Thread.Sleep(500);
-                SendKeys.SendWait("00");
-                Thread.Sleep(500);
-                Keyboard.Press(FlaUI.Core.WindowsAPI.VirtualKeyShort.RIGHT);
-                SendKeys.SendWait("00");
+                ele.AsTextBox().Enter("00");
                 Thread.Sleep(500);
 
                 //dtTglSampai
@@ -505,45 +517,121 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
         static bool SavingReport01()
         {
             var functionname = "SavingReport01";
-            int steps = 0;
+            int step = 0;
             try
             {
-                //* Picking report 'Preview' window,it's a direct child of main os window
-                var checkingele = "";
 
-                var ParentEle = window.FindFirstDescendant(cf => cf.ByAutomationId("PrintPreviewFormExBase"));
-                for (int i = 1; i == 3; i += 1) 
+                //* Picking report 'Preview' window,it's a direct child of main os window
+                Thread.Sleep(5000);
+
+                AutomationElement ParentEle;
+                if (AuAppMainWindow == null || AuAppMainWindow is null)
                 {
-                    if (ParentEle != null) { break; } 
+                    var au = new UIA3Automation();
+                    ParentEle = window.FindFirstDescendant(cf => cf.ByAutomationId("PrintPreviewFormExBase"));
+                }
+                else
+                { ParentEle = AuAppMainWindow.Parent.FindFirstDescendant(cf => cf.ByAutomationId("PrintPreviewFormExBase")); }
+
+                for (int i = 1; i <= 120; i += 1) // ==> keep looking 'Preview' window for 10 minutes
+                {
+                    if (ParentEle != null) 
+                    {
+                        break; 
+                    } 
                     Thread.Sleep(5000); 
                 }
-                //tambahkan lagi logika untuk mecari 'Preview' window dalam rentang waktu 10 menit
-                //dan dalam rentang waktu tsb melakukan check element dalam setiap 1/2 menit
-                if (ParentEle == null) { return false; }
 
-                var ele = ParentEle.FindFirstDescendant(cf => cf.ByAutomationId("frmLapPenjualan"));
-                checkingele = CheckingEle(ParentEle, step += 1, functionname);
+                //Dock Top
+                var ele = ParentEle.FindFirstChild(cf => cf.ByName("Dock Top"));
+                var checkingele = CheckingEle(ele, step += 1, functionname);
                 if (checkingele != "") { Log.Information(checkingele); return false; }
                 ParentEle.SetForeground();
 
                 //Main Menu
-                ele = ParentEle.FindFirstDescendant(cf => cf.ByName("Main Menu"));
-                checkingele = CheckingEle(ParentEle, step += 1, functionname);
+                ele = ele.FindFirstChild(cf => cf.ByName("Main Menu"));
+                checkingele = CheckingEle(ele, step += 1, functionname);
                 if (checkingele != "") { Log.Information(checkingele); return false; }
-                ParentEle.SetForeground();
+                ele.SetForeground();
+                Thread.Sleep(1000);
 
-                //Watermark...
-                ele = ParentEle.FindFirstChild(cf => cf.ByName("Watermark..."));
-                checkingele = CheckingEle(ParentEle, step += 1, functionname);
+                //File
+                ele = ele.FindFirstChild(cf => cf.ByName("File"));
+                checkingele = CheckingEle(ele, step += 1, functionname);
                 if (checkingele != "") { Log.Information(checkingele); return false; }
-                ParentEle.Focus();
+                ele.Focus();
                 MouseClickaction(ele);
                 Thread.Sleep(1000);
 
-                // 8-Nov-2023
-                // lanjutkan dengan mencari list control type yg mempunyai process id sama dengan process id iPos4.0
+                //then on the context menu (represent as list of  button element) travers to 
+                //Export Document...
+                ele = ele.FindFirstChild(cf => cf.ByName("Export Document..."));
+                checkingele = CheckingEle(ele, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+                ele.SetForeground();
+                Mouse.MoveTo (ele.GetClickablePoint());
+                Thread.Sleep(1000);
 
-                return true;
+                //then from the 'Export Document...' button hovering action, move mouse to the new opened context menu 
+                //XLSX File
+                // ele = ele.FindFirstChild(cf => cf.ByName("XLSX File"));
+                ele = ParentEle.Parent.FindFirstDescendant(cf => cf.ByName("XLSX File"));
+                checkingele = CheckingEle(ele, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+                //ele.SetForeground();
+                Mouse.MoveTo(ele.GetClickablePoint());
+                MouseClickaction(ele);
+                Thread.Sleep(5000);
+
+                //when report parmeter windows with AutomationId: LinesForm show grab it
+                ele = ParentEle.FindFirstChild(cf => cf.ByName("XLSX Export Options"));
+                checkingele = CheckingEle(ele, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+                ele.SetForeground();
+
+                //click 'OK' button
+                ele = ele.FindFirstDescendant(cf => cf.ByName("OK"));
+                checkingele = CheckingEle(ele, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+                ele.SetForeground();
+                MouseClickaction(ele);
+                Thread.Sleep(5000);
+
+                //grabbing 'Save as' windows element
+                ele = ParentEle.FindFirstChild(cf => cf.ByName("Save As"));
+                checkingele = CheckingEle(ele, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+                ele.SetForeground();
+
+                //1001
+                var ele1 = ele.FindFirstDescendant(cf => cf.ByAutomationId("1001"));
+                checkingele = CheckingEle(ele1, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+                ele1.AsTextBox().Focus();
+                ele1.AsTextBox().Enter($@"{appfolder}\sales");
+
+                //Save 
+                ele1 = ele.FindFirstDescendant(cf => cf.ByName("Save"));
+                checkingele = CheckingEle(ele1, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+                ele1.Focus();
+                MouseClickaction (ele1);
+                Thread.Sleep(5000);
+
+                //Grabbbing 'Export' window
+                ele = ParentEle.FindFirstChild(cf => cf.ByName("Export"));
+                checkingele = CheckingEle(ele, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+                ele.SetForeground();
+
+                //&No
+                ele1 = ele.FindFirstDescendant(cf => cf.ByName("&No"));
+                checkingele = CheckingEle(ele1, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+                ele1.Focus();
+                MouseClickaction(ele1);
+
+                return closePreviwWindow(ParentEle, step, functionname);
 
 
             }
@@ -554,6 +642,50 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
             }
 
         }
+        private static bool closePreviwWindow(AutomationElement ParentEle, int step, string functionname)
+        {
+            try 
+            {
+                //Dock Top
+                var ele = ParentEle.FindFirstChild(cf => cf.ByName("Dock Top"));
+                var checkingele = CheckingEle(ele, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+                ParentEle.SetForeground();
+
+                //Main Menu
+                ele = ele.FindFirstChild(cf => cf.ByName("Main Menu"));
+                checkingele = CheckingEle(ele, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+                ele.SetForeground();
+                Thread.Sleep(1000);
+
+                //File
+                ele = ele.FindFirstChild(cf => cf.ByName("File"));
+                checkingele = CheckingEle(ele, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+                ele.Focus();
+                MouseClickaction(ele);
+                Thread.Sleep(1000);
+
+                //then on the context menu (represent as list of  button element) travers to 
+                //Export Document...
+                ele = ele.FindFirstChild(cf => cf.ByName("Exit"));
+                checkingele = CheckingEle(ele, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+                ele.SetForeground();
+                Mouse.MoveTo(ele.GetClickablePoint());
+                MouseClickaction(ele);
+                Thread.Sleep(1000);
+
+                return true;
+            } 
+            catch (Exception ex) {
+                Log.Information($"Error when executing {functionname} => {ex.Message}");
+                return false;
+            }
+            
+        }
     }
+
 }
     

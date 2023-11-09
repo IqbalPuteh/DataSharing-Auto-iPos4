@@ -26,7 +26,7 @@ public abstract class DirectoryManipulator
     public virtual string DeleteFilesBase(string path, string extension)
     {
         DirectoryInfo directory = new DirectoryInfo(path);
-        foreach (FileInfo file in directory.GetFiles($"*.{extension}"))
+        foreach (FileInfo file in directory.GetFiles($"{extension}"))
         {
             file.Delete();
         }
@@ -84,13 +84,13 @@ public class  MyDirectoryManipulator : DirectoryManipulator
         switch (fileExtension)
         {
             case FileExtension.Excel:
-                extension = ".xl*";
+                extension = "*.xl*";
                 break;
             case FileExtension.Log:
-                extension = ".log";
+                extension = "*.log";
                 break;
             case FileExtension.Zip:
-                extension = ".zip";
+                extension = "*.zip";
                 break;
         }
         base.DeleteFilesBase(path, extension);
