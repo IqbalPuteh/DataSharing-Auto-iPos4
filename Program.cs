@@ -9,17 +9,16 @@ using FlaUI.Core.Conditions;
 using FlaUI.Core.Definitions;
 using FlaUI.Core.AutomationElements;
 using Serilog;
-using static System.Windows.Forms.Design.AxImporter;
 
 namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
 {
     internal class Program
     {
         static Application appx;
-        static Window AuAppMainWindow;
-        static UIA3Automation automationUIA3 = new UIA3Automation();
+        //static Window AuAppMainWindow;
+        static UIA3Automation automationUIA3;
         static ConditionFactory cf = new ConditionFactory(new UIA3PropertyLibrary());
-        static AutomationElement window = automationUIA3.GetDesktop();
+        static AutomationElement window;
         static string dtID = ConfigurationManager.AppSettings["dtID"];
         static string dtName = ConfigurationManager.AppSettings["dtName"];
         static string LoginId = ConfigurationManager.AppSettings["loginId"];
@@ -32,8 +31,10 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
         static string uploadfolder = appfolder + @"\" + ConfigurationManager.AppSettings["uploadfolder"];
         static string sharingfolder = appfolder + @"\" + ConfigurationManager.AppSettings["sharingfolder"];
         static string iposgudang = ConfigurationManager.AppSettings["namagudangdiipos"].ToUpper();
+        static string shortcuttoipos = ConfigurationManager.AppSettings["shortcuttoipos"].ToUpper();
         //static string screenshotfolder = appfolder + @"\" + ConfigurationManager.AppSettings["screenshotfolder"];
         static string logfilename = "";
+        static int pid = 0;
 
         enum reportType
         {
@@ -50,12 +51,12 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
             for (int i = 0; i < 2000; i++)
             {
                 element = findElementFunc();
-                if (element != null)
+                if (element is not null)
                 {
                     break;
                 }
 
-                Thread.Sleep(1);
+                //Thread.Sleep(1);
             }
             return element;
         }
@@ -89,18 +90,18 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 Log.Logger = config.CreateLogger();
 
                 Log.Information("iPOS ver.4 Automation - by FAIRBANC *** Started! *** ");
-
-
-                //if (!OpenAppAndDBConfig())
-                //{
-                //    Log.Information("application automation failed when running app (openappanddbconfig) !!!");
-                //    return;
-                //}
-                //if (!LoginApp())
-                //{
-                //    Log.Information("application automation failed when running app (loginapp) !!!");
-                //    return;
-                //}
+                automationUIA3 = new UIA3Automation();
+                window = automationUIA3.GetDesktop();
+                if (!OpenAppAndDBConfig())
+                {
+                    Log.Information("application automation failed when running app (openappanddbconfig) !!!");
+                    return;
+                }
+                if (!LoginApp())
+                {
+                    Log.Information("application automation failed when running app (loginapp) !!!");
+                    return;
+                }
                 if (!OpenSalesReport())
                 {
                     Log.Information("Application automation failed when running app (OpenSalesReport) !!!");
@@ -136,7 +137,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
             {
 
                 // Specify the path to your shortcut
-                string shortcutPath = @"C:\Users\iputeh\Desktop\iPos 4.0 Program Toko.lnk";
+                string shortcutPath = $@"{shortcuttoipos}";
                 ProcessStartInfo startInfo = new ProcessStartInfo();
                 startInfo.FileName = shortcutPath;
                 startInfo.UseShellExecute = true;
@@ -144,23 +145,20 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
 
                 Process process = new Process();
                 process.StartInfo = startInfo;
-                //process.Start();
-
-                Thread.Sleep(15000);
+                automationUIA3 = new UIA3Automation();
 
                 try
                 {
                     appx = Application.Launch(process.StartInfo);
-                    AuAppMainWindow = appx.GetMainWindow(automationUIA3);
+                    window = appx.GetMainWindow(automationUIA3);
+                    pid = appx.ProcessId;
+                    Thread.Sleep(30000);
                 }
-                catch { Log.Information($"[{functionname}] Error ketika mebuka mmnghandle iPos window process..."); }
-                //* Wait until Accurate window ready
-                Thread.Sleep(15000);
-                //FlaUI.Core.Input.Wait.UntilResponsive(DesktopWindow.FindFirstChild(),TimeSpan.FromSeconds(4));
+                catch { Log.Information($"[{functionname}] Error ketika mebuka mmnghandle iPos window process..."); return false; }
 
                 //* Picking Koneksi Database main window
                 var checkingele = "";
-                var ParentEle = AuAppMainWindow.FindFirstChild(cf => cf.ByName("Koneksi Database"));
+                var ParentEle = window.FindFirstDescendant(cf => cf.ByName("Koneksi Database"));
                 checkingele = CheckingEle(ParentEle, step += 1, functionname);
                 if (checkingele != "") { Log.Information(checkingele); return false; }
                 ParentEle.SetForeground();
@@ -235,10 +233,25 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
             int step = 0;
             try
             {
-                //* Picking form login main window
+               
                 var checkingele = "";
-
-                var ParentEle = window.FindFirstDescendant(cf => cf.ByName("i P o s", PropertyConditionFlags.MatchSubstring));
+                //* Picking form iPos 4 main windows
+                automationUIA3 = new UIA3Automation();
+                window = automationUIA3.GetDesktop();
+                AutomationElement ParentEle = null;
+                AutomationElement[] MainEle = window.FindAllChildren(cf => cf.ByName("i P o s", PropertyConditionFlags.MatchSubstring));
+                foreach (AutomationElement elem in MainEle)
+                {
+                    if (elem.Properties.ProcessId != pid)
+                    {
+                        Thread.Sleep(2000);
+                    }
+                    else
+                    {
+                        ParentEle = elem; break;
+                    }
+                }
+                //* Picking form login main window
                 ParentEle = ParentEle.FindFirstChild(cf => cf.ByName("Login"));
                 checkingele = CheckingEle(ParentEle, step += 1, functionname);
                 if (checkingele != "") { Log.Information(checkingele); return false; }
@@ -262,8 +275,10 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 ele = ParentEle.FindFirstChild(cf => cf.ByName("Masuk"));
                 ele.AsButton().Focus();
                 Thread.Sleep(1000);
-                ele.AsButton().Invoke();
-                //MouseClickaction(ele);
+                //ele.AsButton().Invoke();
+                var pos = ele.GetClickablePoint();
+                Mouse.MoveTo(pos.X, pos.Y);
+                Mouse.Click();
 
                 return true;
             }
@@ -297,11 +312,20 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
             try
             {
                 //* Picking form iPos 4 main windows
+                automationUIA3 = new UIA3Automation();
+                window = automationUIA3.GetDesktop();
                 var checkingele = "";
-                var ParentEle = window.FindFirstDescendant(cf => cf.ByName("i P o s", PropertyConditionFlags.MatchSubstring));
-                while (!ParentEle.Name.ToLower().Contains(LoginId.ToLower()))
+                AutomationElement ParentEle = null;
+                AutomationElement[] MainEle = window.FindAllChildren(cf => cf.ByName("i P o s", PropertyConditionFlags.MatchSubstring));
+                foreach (AutomationElement elem in MainEle)
                 {
-                    Thread.Sleep(2000);
+                    if (!elem.Name.ToLower().Contains(LoginId.ToLower()))
+                    {
+                        Thread.Sleep(2000);
+                    } else
+                    {
+                        ParentEle = elem; break;
+                    }
                 }
 
                 //Ribbon Tabs
@@ -369,13 +393,13 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 //var ParentEle = AuAppMainWindow.Parent.FindFirstDescendant(cf => cf.ByName("i P o s", PropertyConditionFlags.MatchSubstring));
 
                 AutomationElement ParentEle;
-                if (AuAppMainWindow == null || AuAppMainWindow is null)
+                if (window == null || window is null)
                 {
                     var au = new UIA3Automation();
-                    ParentEle = window.FindFirstDescendant(cf => cf.ByName("i P o s", PropertyConditionFlags.MatchSubstring));
+                    ParentEle = window.FindFirstChild(cf => cf.ByName("i P o s", PropertyConditionFlags.MatchSubstring));
                 }
                 else
-                { ParentEle = AuAppMainWindow.Parent.FindFirstDescendant(cf => cf.ByName("i P o s", PropertyConditionFlags.MatchSubstring)); }
+                { ParentEle = window.FindFirstChild(cf => cf.ByName("i P o s", PropertyConditionFlags.MatchSubstring)); }
                     for (int i = 1; i <= 120; i += 1) // ==> keep looking 'Preview' window for 10 minutes
                 {
                     if (ParentEle != null)
@@ -525,13 +549,13 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 Thread.Sleep(5000);
 
                 AutomationElement ParentEle;
-                if (AuAppMainWindow == null || AuAppMainWindow is null)
+                if (window == null || window is null)
                 {
                     var au = new UIA3Automation();
-                    ParentEle = window.FindFirstDescendant(cf => cf.ByAutomationId("PrintPreviewFormExBase"));
+                    ParentEle = window.FindFirstChild(cf => cf.ByAutomationId("PrintPreviewFormExBase"));
                 }
                 else
-                { ParentEle = AuAppMainWindow.Parent.FindFirstDescendant(cf => cf.ByAutomationId("PrintPreviewFormExBase")); }
+                { ParentEle = window.FindFirstChild(cf => cf.ByAutomationId("PrintPreviewFormExBase")); }
 
                 for (int i = 1; i <= 120; i += 1) // ==> keep looking 'Preview' window for 10 minutes
                 {

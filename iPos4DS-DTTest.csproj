@@ -6,6 +6,8 @@
     <RootNamespace>iPos4DS_DTTest</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <StartupObject>iPos4DS_DTTest.Program</StartupObject>
+    <PlatformTarget>x86</PlatformTarget>
   </PropertyGroup>
 
   <ItemGroup>
