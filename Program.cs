@@ -9,6 +9,7 @@ using FlaUI.Core.Conditions;
 using FlaUI.Core.Definitions;
 using FlaUI.Core.AutomationElements;
 using Serilog;
+using System.IO.Compression;
 
 namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
 {
@@ -62,7 +63,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
             return element;
         }
 
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             try
             {
@@ -72,7 +73,6 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
 #else
                 BlockInput(true);
 #endif
-
                 var myFileUtil = new MyDirectoryManipulator();
                 if (!Directory.Exists(appfolder))
                 {
@@ -80,11 +80,12 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                     myFileUtil.CreateDirectory(uploadfolder);
                     myFileUtil.CreateDirectory(sharingfolder);
                 }
-                Console.WriteLine(myFileUtil.DeleteFiles(appfolder, MyDirectoryManipulator.FileExtension.Excel));
-                Console.WriteLine(myFileUtil.DeleteFiles(appfolder, MyDirectoryManipulator.FileExtension.Log));
-                Console.WriteLine(myFileUtil.DeleteFiles(appfolder, MyDirectoryManipulator.FileExtension.Zip));
-
-
+                var temp = myFileUtil.DeleteFiles(appfolder, MyDirectoryManipulator.FileExtension.Excel);
+                Task.Run(() => Console.WriteLine(temp)); 
+                temp = myFileUtil.DeleteFiles(appfolder, MyDirectoryManipulator.FileExtension.Log);
+                Task.Run(() => Console.WriteLine(temp));
+                temp = myFileUtil.DeleteFiles(appfolder, MyDirectoryManipulator.FileExtension.Zip);
+                Task.Run(() => Console.WriteLine(temp));
                 var config = new LoggerConfiguration();
                 logfilename = "DEBUG-" + dtID + "-" + dtName + ".log";
                 config.WriteTo.File(appfolder + Path.DirectorySeparatorChar + logfilename);
@@ -98,16 +99,16 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 automationUIA3 = new UIA3Automation();
                 window = automationUIA3.GetDesktop();
 
-                //if (!OpenAppAndDBConfig())
-                //{
-                //    Log.Information("application automation failed when running app (openappanddbconfig) !!!");
-                //    return;
-                //}
-                //if (!LoginApp())
-                //{
-                //    Log.Information("application automation failed when running app (loginapp) !!!");
-                //    return;
-                //}
+                if (!OpenAppAndDBConfig())
+                {
+                    Log.Information("application automation failed when running app (openappanddbconfig) !!!");
+                    return;
+                }
+                if (!LoginApp())
+                {
+                    Log.Information("application automation failed when running app (loginapp) !!!");
+                    return;
+                }
                 if (!OpenReportParam("sales"))
                 {
                     Log.Information("Application automation failed when running app (OpenReportParam) !!!");
@@ -139,17 +140,25 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                     Log.Information("Application automation failed when running app (SendingRptParam) !!!");
                     return;
                 }
+                if (await  ZipandSendAsync() != true)
+                {
+                    Log.Information("Application automation failed when running app (SendingRptParam) !!!");
+                    return;
+                }
 
             }
             catch (Exception ex)
-            { Log.Information($"IPos automation error => {ex.ToString()}"); }
+            {
+                Log.Information($"IPos automation error => {ex.ToString()}");
+                Task.Run(() => Console.WriteLine($"IPos automation error => {ex.ToString()}"));
+            }
             finally
             {
                 //* Call this method to enable keyboard input
                 BlockInput(false);
 
-                Log.Information("iPOS ver.4 Automation - *** END ***");
-                if (automationUIA3 != null)
+                Task.Run(() => Console.WriteLine("iPOS ver.4 Automation - *** END ***"));
+                if (automationUIA3 is not null)
                 {
                     automationUIA3.Dispose();
                 }
@@ -250,7 +259,8 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 checkingele = CheckingEle(ele, step += 1, functionname);
                 if (checkingele != "") { Log.Information(checkingele); return false; }
                 Thread.Sleep(1000);
-                listele.AsListBox().Items[0].Click();
+                listele.AsListBox().Items[0].Select();
+
 
                 ele = ParentEle.FindFirstChild(cf => cf.ByName("Pilih"));
                 ele.AsButton().Focus();
@@ -277,7 +287,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
             int step = 0;
             try
             {
-               
+
                 var checkingele = "";
                 //* Picking form iPos 4 main windows
                 automationUIA3 = new UIA3Automation();
@@ -357,21 +367,22 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 ParentEle = ParentEle.FindFirstDescendant(cf => cf.ByName("The Ribbon"));
                 checkingele = CheckingEle(ParentEle, step += 1, functionname);
                 if (checkingele != "") { Log.Information(checkingele); return false; }
-                //ParentEle.SetForeground();
+                ParentEle.SetForeground();
 
                 //Ribbon Tabs
                 var ele = ParentEle.FindFirstDescendant(cf => cf.ByName("Ribbon Tabs"));
                 checkingele = CheckingEle(ele, step += 1, functionname);
                 if (checkingele != "") { Log.Information(checkingele); return false; }
-                ele.Focus();
+                MouseClickaction(ele);
                 Thread.Sleep(500);
 
                 //Penjualan
-                ele = ele.FindFirstDescendant(cf => cf.ByName("Laporan"));
+                ele = ele.FindFirstChild(cf => cf.ByName("Laporan"));
                 checkingele = CheckingEle(ele, step += 1, functionname);
                 if (checkingele != "") { Log.Information(checkingele); return false; }
                 ParentEle.SetForeground();
-                MouseClickaction(ele);
+                ele.AsTabItem().Select();
+                ele.AsTabItem().Click();
                 Thread.Sleep(1000);
 
                 //Traversing to "Lower Ribbon" from Parent Element "The Ribbon"
@@ -399,9 +410,9 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                     checkingele = CheckingEle(ele, step += 1, functionname);
                     if (checkingele != "") { Log.Information(checkingele); return false; }
                     MouseClickaction(ele);
-                } 
+                }
                 else if (reportname == "ar")
-                {                 
+                {
                     //'Hutang Piutang' toolbar
                     ele = ele.FindFirstDescendant(cf => cf.ByName("Hutang Piutang"));
                     checkingele = CheckingEle(ele, step += 1, functionname);
@@ -420,8 +431,8 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                     checkingele = CheckingEle(ele, step += 1, functionname);
                     if (checkingele != "") { Log.Information(checkingele); return false; }
                     MouseClickaction(ele);
-                } 
-                else 
+                }
+                else
                 {
                     //'Master Data' toolbar
                     ele = ele.FindFirstDescendant(cf => cf.ByName("Master"));
@@ -473,11 +484,11 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
 
                 for (int i = 1; i <= 120; i += 1) // ==> keep looking 'Preview' window for 10 minutes
                 {
-                    if (ParentEle != null) 
+                    if (ParentEle != null)
                     {
-                        break; 
-                    } 
-                    Thread.Sleep(5000); 
+                        break;
+                    }
+                    Thread.Sleep(5000);
                 }
                 checkingele = CheckingEle(ParentEle, step += 1, functionname);
                 if (checkingele != "") { Log.Information(checkingele); return false; }
@@ -509,7 +520,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 checkingele = CheckingEle(ele, step += 1, functionname);
                 if (checkingele != "") { Log.Information(checkingele); return false; }
                 ele.SetForeground();
-                Mouse.MoveTo (ele.GetClickablePoint());
+                Mouse.MoveTo(ele.GetClickablePoint());
                 Thread.Sleep(1000);
 
                 //then from the 'Export Document...' button hovering action, move mouse to the new opened context menu 
@@ -547,21 +558,14 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 checkingele = CheckingEle(ele1, step += 1, functionname);
                 if (checkingele != "") { Log.Information(checkingele); return false; }
                 ele1.AsTextBox().Focus();
-                var filename = "";
-                switch (reportName)
+                
+                var filename = reportName switch
                 {
-                    case "sales":
-                        filename = "Penjualan";
-                        break;
-                    case "ar":
-                        filename = "Pembayaran";
-                        break;
-                    case "outlet":
-                        filename = "Outlet";
-                        break;
-                    default:
-                        break;
-                }
+                    "sales" => "Sales_Data",
+                    "ar" => "Repayment_Data",
+                    _ => "Master_Outlet"
+                };
+
                 ele1.AsTextBox().Enter($@"{appfolder}\{filename}");
 
                 //Save 
@@ -569,7 +573,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 checkingele = CheckingEle(ele1, step += 1, functionname);
                 if (checkingele != "") { Log.Information(checkingele); return false; }
                 ele1.Focus();
-                MouseClickaction (ele1);
+                MouseClickaction(ele1);
                 Thread.Sleep(5000);
 
                 //Grabbbing 'Export' window
@@ -623,25 +627,14 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 if (checkingele != "") { Log.Information(checkingele); return false; }
                 ParentEle.SetForeground();
 
-                var eleName = "";
-                var imglstrptname = "";
-                switch (reportName)
+                //var eleName = "";
+                //var imglstrptname = "";
+                (var eleName, var imglstrptname) = reportName switch
                 {
-                    case "sales":
-                        eleName = "frmLapPenjualan";
-                        imglstrptname = "Laporan Penjualan Detail";
-                        break;
-                    case "ar":
-                        eleName = "frmLapPiutangBayar";
-                        imglstrptname = "Laporan Piutang - Pembayaran";
-                        break;
-                    case "outlet":
-                        eleName = "frmLapPelanggan";
-                        imglstrptname = ""; //Not applicable here...
-                        break;
-                    default:
-                        break;
-                }
+                    "sales" => ("frmLapPenjualan", "Laporan Penjualan Detail"),
+                    "ar" => ("frmLapPiutangBayar", "Laporan Piutang - Pembayaran"),
+                    _ => ("frmLapPelanggan", "" /*Not applicable here*/)
+                };
                 var ele = ParentEle.FindFirstDescendant(cf => cf.ByAutomationId(eleName));
                 checkingele = CheckingEle(ele, step += 1, functionname);
                 if (checkingele != "") { Log.Information(checkingele); return false; }
@@ -740,7 +733,6 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
 #else
                     BlockInput(true);
 #endif
-
                     //imgLst
                     ele = ParentEle.FindFirstDescendant(cf => cf.ByAutomationId("imgLst"));
                     checkingele = CheckingEle(ele, step += 1, functionname);
@@ -765,7 +757,6 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 Thread.Sleep(5000);
 
 
-
                 //calling report save function
                 if (!SavingReport(reportName))
                 {
@@ -782,7 +773,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 checkingele = CheckingEle(closeButtonEle, step += 1, functionname);
                 if (checkingele != "") { Log.Information(checkingele); return false; }
                 ParentEle.SetForeground();
-                closeButtonEle.AsButton().Click(); 
+                closeButtonEle.AsButton().Click();
                 //MouseClickaction(closeButtonEle);
                 Thread.Sleep(5000);
 
@@ -871,7 +862,68 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
 
         }
 
+        private static async Task<bool> ZipandSendAsync()
+        {
+            try
+            {
+                Log.Information("Checking and deleting existing ZIP files...");
+                var strDsPeriod = DateManipul.GetPrevYear() + DateManipul.GetPrevMonth();
 
+                Log.Information("Moving standart excel reports file to uploaded folder...");
+                // move excels files to Datafolder
+                var path = appfolder + @"\Master_Outlet.xlsx";
+                var path2 = uploadfolder + @"\ds-" + dtID + "-" + dtName + "-" + strDsPeriod + "_OUTLET.xlsx";
+                File.Move(path, path2, true);
+                path = appfolder + @"\Sales_Data.xlsx";
+                path2 = uploadfolder + @"\ds-" + dtID + "-" + dtName + "-" + strDsPeriod + "_SALES.xlsx";
+                File.Move(path, path2, true);
+                path = appfolder + @"\Repayment_Data.xlsx";
+                path2 = uploadfolder + @"\ds-" + dtID + "-" + dtName + "-" + strDsPeriod + "_AR.xlsx";
+                File.Move(path, path2, true);
+
+                // set zipping name for files
+                Log.Information("Zipping Transaction file(s)");
+                var strZipFile = dtID + "-" + dtName + "_" + strDsPeriod + ".zip";
+                ZipFile.CreateFromDirectory(uploadfolder, sharingfolder + Path.DirectorySeparatorChar + strZipFile);
+
+                // Send the ZIP file to the API server 
+                using (var mycUrl = new cUrlClass('Y', issandbox.ToArray().First(), "", sharingfolder + Path.DirectorySeparatorChar + strZipFile))
+                {
+                    Log.Information("Sending ZIP file to the API server...");
+                    var strStatusCode = "0"; // varible for debugging Curl test
+                    strStatusCode = await mycUrl.SendRequestAsync();
+                    Thread.Sleep(5000);
+                    if (strStatusCode == "200")
+                    {
+                        Log.Information("DATA TRANSACTION SHARING - SELESAI");
+                    }
+                    else
+                    {
+                        Log.Information("Failed to send TRANSACTION file to API server... => " + strStatusCode);
+                    }
+
+                }
+                Log.CloseAndFlush();
+                using (var mycUrl = new cUrlClass('Y', issandbox.ToArray().First(), "", appfolder + Path.DirectorySeparatorChar + logfilename))
+                {
+                    Log.Information("Sending log file to the API server...");
+                    Task.Run(() => Console.WriteLine("Sending log file to the API server..."));
+                    var strStatusCode = "0"; // varible for debugging Curl test
+                    strStatusCode = await mycUrl.SendRequestAsync();
+                    Thread.Sleep(5000);
+                    if (strStatusCode != "200")
+                    {
+                        throw new Exception ("Failed to send LOG file to API server...");
+                    }
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Task.Run(() => Console.WriteLine($"Error during ZIP and cUrl send: {ex.Message}"));
+                return false;
+            }
+        }
     }
 
 }

@@ -11,8 +11,6 @@ public abstract class DirectoryManipulator
         Zip
     }
 
-
-
     public virtual string CreateDirectory(string path)
     {
         if (Directory.Exists(path))
@@ -40,32 +38,19 @@ public abstract class DirectoryManipulator
 
     public virtual string ZipDirectory(string sourcePath, string destinationPath)
     {
-        //ProcessStartInfo startInfo = new ProcessStartInfo();
-        //startInfo.FileName = "7z.exe";
-        //startInfo.Arguments = $"a -tzip \"{destinationPath}\" \"{sourcePath}\" -mx=9";
-        //startInfo.WindowStyle = ProcessWindowStyle.Hidden;
-        //Process process = new Process();
-        //process.StartInfo = startInfo;
-        //process.Start();
-        //process.WaitForExit();
+
         return "";
     }
 
     public virtual string SendFileToUrl(string filePath, string url)
     {
-        //ProcessStartInfo startInfo = new ProcessStartInfo();
-        //startInfo.FileName = "curl.exe";
-        //startInfo.Arguments = $"-F \"file=@{filePath}\" \"{url}\"";
-        //startInfo.WindowStyle = ProcessWindowStyle.Hidden;
-        //Process process = new Process();
-        //process.StartInfo = startInfo;
-        //process.Start();
-        //process.WaitForExit();
-        return "";
-        
+
+        return "";       
     }
 
+
 }
+
 public class  MyDirectoryManipulator : DirectoryManipulator
 {
    
@@ -109,26 +94,26 @@ public class  MyDirectoryManipulator : DirectoryManipulator
         return ($"Sending file at {filePath} to {url}");
 
     }
+
+
 }
 
-public class MyDateManipulator
+public static class DateManipul
 {
-    private static string GetPrevMonth()
+    public static string GetPrevMonth()
     {
         return DateTime.Now.AddMonths(-1).ToString("MM");
     }
 
-    private static string GetPrevYear()
+    public static string GetPrevYear()
     {
         return DateTime.Now.AddMonths(-1).ToString("yyyy");
     }
 
-
-    private static string GetFirstDate()
+    public static string GetFirstDate()
     {
         return "01";
     }
-
 
     public static string GetDateFrom()
     {
