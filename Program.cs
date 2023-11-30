@@ -47,6 +47,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
         [DllImport("user32.dll")]
 
         public static extern bool BlockInput(bool fBlockIt);
+        
         private static AutomationElement WaitForElement(Func<AutomationElement> findElementFunc)
         {
             AutomationElement element = null;
@@ -61,6 +62,12 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 //Thread.Sleep(1);
             }
             return element;
+        }
+
+        static bool IsFileExists(string path, string fileName)
+        {
+            string fullPath = Path.Combine(path, fileName);
+            return File.Exists(fullPath);
         }
 
         static async Task Main(string[] args)
@@ -81,11 +88,11 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                     myFileUtil.CreateDirectory(sharingfolder);
                 }
                 var temp = myFileUtil.DeleteFiles(appfolder, MyDirectoryManipulator.FileExtension.Excel);
-                Task.Run(() => Console.WriteLine(temp)); 
+                Task.Run(() => Console.WriteLine($"[{ DateTime.Now.ToString("HH:mm:ss")} INF] {temp}")); 
                 temp = myFileUtil.DeleteFiles(appfolder, MyDirectoryManipulator.FileExtension.Log);
-                Task.Run(() => Console.WriteLine(temp));
+                Task.Run(() => Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")} INF] {temp}"));
                 temp = myFileUtil.DeleteFiles(appfolder, MyDirectoryManipulator.FileExtension.Zip);
-                Task.Run(() => Console.WriteLine(temp));
+                Task.Run(() => Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")} INF] {temp}"));
                 var config = new LoggerConfiguration();
                 logfilename = "DEBUG-" + dtID + "-" + dtName + ".log";
                 config.WriteTo.File(appfolder + Path.DirectorySeparatorChar + logfilename);
@@ -95,18 +102,18 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 }
                 Log.Logger = config.CreateLogger();
 
-                Log.Information("iPOS ver.4 Automation - by FAIRBANC *** Started! *** ");
+                Log.Information("iPOS ver.4 Automation - *** Started *** ");
                 automationUIA3 = new UIA3Automation();
                 window = automationUIA3.GetDesktop();
 
                 if (!OpenAppAndDBConfig())
                 {
-                    Log.Information("application automation failed when running app (openappanddbconfig) !!!");
+                    Log.Information("application automation failed when running app (OpenAppAndDBConfig) !!!");
                     return;
                 }
                 if (!LoginApp())
                 {
-                    Log.Information("application automation failed when running app (loginapp) !!!");
+                    Log.Information("application automation failed when running app (LoginApp) !!!");
                     return;
                 }
                 if (!OpenReportParam("sales"))
@@ -122,7 +129,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
 
                 if (!OpenReportParam("ar"))
                 {
-                    Log.Information("Application automation failed when running app (SendingRptParam) !!!");
+                    Log.Information("Application automation failed when running app (OpenReportParam) !!!");
                     return;
                 }
                 if (!SendingRptParam("ar"))
@@ -132,7 +139,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 }
                 if (!OpenReportParam("outlet"))
                 {
-                    Log.Information("Application automation failed when running app (SendingRptParam) !!!");
+                    Log.Information("Application automation failed when running app (OpenReportParam) !!!");
                     return;
                 }
                 if (!SendingRptParam("outlet"))
@@ -140,24 +147,28 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                     Log.Information("Application automation failed when running app (SendingRptParam) !!!");
                     return;
                 }
-                if (await  ZipandSendAsync() != true)
+                if (await ZipandSendAsync() != true)
                 {
-                    Log.Information("Application automation failed when running app (SendingRptParam) !!!");
+                    Log.Information("Application automation failed when running app (ZipandSendAsync) !!!");
                     return;
                 }
-
+                if (!ClosingApp())
+                {
+                    Log.Information("application automation failed when running app (ClosingApp) !!!");
+                    return;
+                }
             }
             catch (Exception ex)
             {
                 Log.Information($"IPos automation error => {ex.ToString()}");
-                Task.Run(() => Console.WriteLine($"IPos automation error => {ex.ToString()}"));
+                Task.Run(() => Console.WriteLine($"[{DateTime.Now.ToString("HH:mm")} INF] iPos automation error => {ex.ToString()}"));
             }
             finally
             {
                 //* Call this method to enable keyboard input
                 BlockInput(false);
 
-                Task.Run(() => Console.WriteLine("iPOS ver.4 Automation - *** END ***"));
+                Task.Run(() => Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")} INF] iPOS ver.4 Automation - ***   END   ***"));
                 if (automationUIA3 is not null)
                 {
                     automationUIA3.Dispose();
@@ -574,7 +585,24 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 if (checkingele != "") { Log.Information(checkingele); return false; }
                 ele1.Focus();
                 MouseClickaction(ele1);
-                Thread.Sleep(5000);
+
+                //Function to check whether the file is already finnished created in intended folder
+                DateTime startTime = DateTime.Now;
+                Task.Delay(1000); 
+                while (DateTime.Now - startTime < TimeSpan.FromMinutes(2))
+                {
+                    if (IsFileExists(appfolder, filename + ".xlsx"))
+                    {
+                        Log.Information($"File {filename}.xlsx saved successfully...");
+                        break;
+                    }
+                    Task.Delay(5000);
+                }
+                if (!IsFileExists(appfolder, filename + ".xlsx"))
+                {
+                    Log.Information($"'Timeout' when saving {filename}.xlsx file...");
+                    return false;
+                }
 
                 //Grabbbing 'Export' window
                 ele = ParentEle.FindFirstChild(cf => cf.ByName("Export"));
@@ -674,14 +702,14 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                     Keyboard.Press(FlaUI.Core.WindowsAPI.VirtualKeyShort.LEFT);
                     Thread.Sleep(500);
                     Keyboard.Press(FlaUI.Core.WindowsAPI.VirtualKeyShort.LEFT);
-                    ele.AsTextBox().Enter("01");
+                    ele.AsTextBox().Enter(DateManipul.GetFirstDate());
                     Thread.Sleep(500);
                     Keyboard.Press(FlaUI.Core.WindowsAPI.VirtualKeyShort.RIGHT);
                     Thread.Sleep(500);
-                    ele.AsTextBox().Enter("01");
+                    ele.AsTextBox().Enter(DateManipul.GetPrevMonth());
                     Keyboard.Press(FlaUI.Core.WindowsAPI.VirtualKeyShort.RIGHT);
                     Thread.Sleep(500);
-                    ele.AsTextBox().Enter("2023");
+                    ele.AsTextBox().Enter(DateManipul.GetPrevYear());
                     Thread.Sleep(500);
                     Keyboard.Press(FlaUI.Core.WindowsAPI.VirtualKeyShort.RIGHT);
                     Thread.Sleep(500);
@@ -708,15 +736,15 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                     Keyboard.Press(FlaUI.Core.WindowsAPI.VirtualKeyShort.LEFT);
                     Thread.Sleep(500);
                     Keyboard.Press(FlaUI.Core.WindowsAPI.VirtualKeyShort.LEFT);
-                    ele.AsTextBox().Enter("31");
+                    ele.AsTextBox().Enter(DateManipul.GetLastDayOfPrevMonth());
                     Thread.Sleep(500);
                     Keyboard.Press(FlaUI.Core.WindowsAPI.VirtualKeyShort.RIGHT);
                     Thread.Sleep(500);
-                    ele.AsTextBox().Enter("12");
+                    ele.AsTextBox().Enter(DateManipul.GetPrevMonth());
                     Thread.Sleep(500);
                     Keyboard.Press(FlaUI.Core.WindowsAPI.VirtualKeyShort.RIGHT);
                     Thread.Sleep(500);
-                    ele.AsTextBox().Enter("2023");
+                    ele.AsTextBox().Enter(DateManipul.GetPrevYear());
                     Thread.Sleep(500);
                     Keyboard.Press(FlaUI.Core.WindowsAPI.VirtualKeyShort.RIGHT);
                     Thread.Sleep(500);
@@ -784,10 +812,6 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
             {
                 Log.Information($"Error when executing {functionname} => {ex.Message}");
                 return false;
-            }
-            finally
-            {
-                BlockInput(true);
             }
         }
 
@@ -862,6 +886,53 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
 
         }
 
+        private static bool ClosingApp()
+        {
+            var functionname = "ClosingApp";
+            int step = 0;
+            var checkingele = "";
+            try
+            {
+                automationUIA3 = new UIA3Automation();
+                window = automationUIA3.GetDesktop();
+                AutomationElement ParentEle = null;
+                AutomationElement[] MainEle = window.FindAllChildren(cf => cf.ByName("i P o s", PropertyConditionFlags.MatchSubstring));
+                foreach (AutomationElement elem in MainEle)
+                {
+                    if (!elem.Name.ToLower().Contains(LoginId.ToLower()))
+                    {
+                        Thread.Sleep(2000);
+                    }
+                    else
+                    {
+                        ParentEle = elem; break;
+                    }
+                }
+                checkingele = CheckingEle(ParentEle, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+
+                //Automation Id: TitleBar
+                var ele = ParentEle.FindFirstChild(cf => cf.ByAutomationId("TitleBar"));
+                checkingele = CheckingEle(ele, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+                ParentEle.SetForeground();
+                Thread.Sleep(1000);
+
+                //Automation Id: Close, as button
+                ele = ele.FindFirstChild(cf => cf.ByAutomationId("Close"));
+                checkingele = CheckingEle(ele, step += 1, functionname);
+                if (checkingele != "") { Log.Information(checkingele); return false; }
+                ele.AsButton().Invoke();
+
+                return true;
+            } 
+            catch (Exception ex) 
+            {
+                Task.Run(() => Console.WriteLine($"[{DateTime.Now.ToString("HH:mm")} INF] Error during {functionname} function => {ex.Message}"));
+                return false;
+            }
+        }
+
         private static async Task<bool> ZipandSendAsync()
         {
             try
@@ -910,7 +981,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                     Task.Run(() => Console.WriteLine("Sending log file to the API server..."));
                     var strStatusCode = "0"; // varible for debugging Curl test
                     strStatusCode = await mycUrl.SendRequestAsync();
-                    Thread.Sleep(5000);
+                    Thread.Sleep(10000);
                     if (strStatusCode != "200")
                     {
                         throw new Exception ("Failed to send LOG file to API server...");
@@ -920,7 +991,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
             }
             catch (Exception ex)
             {
-                Task.Run(() => Console.WriteLine($"Error during ZIP and cUrl send: {ex.Message}"));
+                Task.Run(() => Console.WriteLine($"[{DateTime.Now.ToString("HH:mm")} INF] Error during ZIP and cUrl send => {ex.Message}"));
                 return false;
             }
         }

@@ -115,6 +115,12 @@ public static class DateManipul
         return "01";
     }
 
+    public static string GetLastDayOfPrevMonth()
+    {
+        var lastDay = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).AddDays(-1);
+        return lastDay.ToString("dd");
+    }
+
     public static string GetDateFrom()
     {
         return $@"{GetFirstDate}/{GetPrevMonth}/{GetPrevYear} 00:00";
@@ -130,11 +136,44 @@ public static class DateManipul
         return $@"{GetPrevYear}{GetPrevMonth}";
     }
 
-    private static string GetLastDayOfPrevMonth()
+   
+}
+
+public class Datemanipulation
+{
+    private readonly string _getPrevMonth;
+    private readonly string _getPrevYear;
+    private readonly string _getFirstDateofPrevMonth;
+    private readonly string _getLastDateofPrevMonth;
+    private readonly string _getDateFrom;
+    private readonly string _getDateTo;
+    private readonly string _getDSPeriod;
+
+    public string GetPrevMonth => _getPrevMonth;
+
+    public string GetPrevYear => _getPrevYear;
+
+    public string GetFirstDateofPrevMonth => _getFirstDateofPrevMonth;
+
+    public string GetLastDateofPrevMonth => _getLastDateofPrevMonth;
+
+    public string GetDateFrom => _getDateFrom;
+
+    public string GetDateTo => _getDateTo;
+
+    public string GetDSPeriod => _getDSPeriod;
+
+    public Datemanipulation()
     {
-        var lastDay = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).AddDays(-1);
-        return lastDay.ToString("dd");
+        _getPrevMonth = DateTime.Now.AddMonths(-1).ToString("MM");
+        _getPrevYear = DateTime.Now.AddMonths(-1).ToString("yyyy");
+        _getFirstDateofPrevMonth = DateTime.Now.AddMonths(-1).ToString("MM");
+        _getLastDateofPrevMonth = new  DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).AddDays(-1).ToString("DD");
+        _getDateFrom = $@"{_getFirstDateofPrevMonth}/{_getPrevMonth}/{_getPrevYear} 00:00";
+        _getDateTo = $@"{_getLastDateofPrevMonth}/{_getPrevMonth}/{_getPrevYear} 00:00";
+        _getDSPeriod = $@"{_getPrevYear}{_getPrevMonth}";
     }
+
 }
 
 
