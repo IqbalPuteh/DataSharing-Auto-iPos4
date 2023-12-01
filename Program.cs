@@ -70,11 +70,23 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
             return File.Exists(fullPath);
         }
 
-        static async Task Main(string[] args)
+        static void Main(string[] args)
         {
             try
             {
                 //* Call this method to disable keyboard input
+                int maxWidth = Console.LargestWindowWidth;
+                Console.SetWindowPosition(0, 0);
+                Console.BackgroundColor = ConsoleColor.DarkGray;
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.WriteLine($"");
+                Console.WriteLine($"******************************************************************");
+                Console.WriteLine($"                    Automasi akan dimulai !                       ");
+                Console.WriteLine($"             Keyboard dan Mouse akan di matikan...                ");
+                Console.WriteLine($"     Komputer akan menjalankan oleh applikasi robot automasi...   ");
+                Console.WriteLine($" Aktifitas penggunakan komputer akan ter-BLOKIR sekitar 10 menit. ");
+                Console.WriteLine($"******************************************************************");
+
 #if DEBUG
                 BlockInput(false);
 #else
@@ -87,6 +99,8 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                     myFileUtil.CreateDirectory(uploadfolder);
                     myFileUtil.CreateDirectory(sharingfolder);
                 }
+                Console.ForegroundColor = ConsoleColor.DarkGreen;
+                Console.BackgroundColor = ConsoleColor.Black;
                 var temp = myFileUtil.DeleteFiles(appfolder, MyDirectoryManipulator.FileExtension.Excel);
                 Task.Run(() => Console.WriteLine($"[{ DateTime.Now.ToString("HH:mm:ss")} INF] {temp}")); 
                 temp = myFileUtil.DeleteFiles(appfolder, MyDirectoryManipulator.FileExtension.Log);
@@ -147,7 +161,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                     Log.Information("Application automation failed when running app (SendingRptParam) !!!");
                     return;
                 }
-                if (await ZipandSendAsync() != true)
+                if (ZipandSendAsync() != true)
                 {
                     Log.Information("Application automation failed when running app (ZipandSendAsync) !!!");
                     return;
@@ -165,6 +179,10 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
             }
             finally
             {
+                Console.Beep();
+                Task.Delay(500);
+                Console.Beep();
+                Task.Delay(500);
                 //* Call this method to enable keyboard input
                 BlockInput(false);
 
@@ -239,6 +257,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 ele.SetForeground();
                 //* check coordinates and try mouse click on the coordinates
                 MouseClickaction(ele);
+                Thread.Sleep(1000);
 
                 //^ Traversing to 'lstData' descendant element from 'Koneksi Database' element
                 ele = ParentEle.FindFirstDescendant(cf => cf.ByAutomationId("lstData", PropertyConditionFlags.None));
@@ -250,6 +269,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 checkingele = CheckingEle(ele, step += 1, functionname);
                 if (checkingele != "") { Log.Information(checkingele); return false; }
                 ele.Click();
+                Thread.Sleep(1000);
 
                 ele = ParentEle.FindFirstDescendant(cf => cf.ByName("Pilih"));
                 checkingele = CheckingEle(ele, step += 1, functionname);
@@ -257,13 +277,15 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 ele.AsButton().Focus();
                 Thread.Sleep(1000);
                 MouseClickaction(ele);
-                ;
+                Thread.Sleep(1000); 
+
                 ele = ParentEle.FindFirstChild(cf => cf.ByName("Cari Database"));
                 checkingele = CheckingEle(ele, step += 1, functionname);
                 if (checkingele != "") { Log.Information(checkingele); return false; }
                 ele.AsButton().Focus();
                 Thread.Sleep(1000);
                 MouseClickaction(ele);
+                Thread.Sleep(1000);
 
                 //* Traversing to 'lDatabase' element from 'Koneksi Database' element
                 var listele = ParentEle.FindFirstChild(cf => cf.ByAutomationId("lDatabase")).AsListBox();
@@ -587,16 +609,16 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 MouseClickaction(ele1);
 
                 //Function to check whether the file is already finnished created in intended folder
-                DateTime startTime = DateTime.Now;
-                Task.Delay(1000); 
+                DateTime startTime = DateTime.Now.AddSeconds(-0.1);
                 while (DateTime.Now - startTime < TimeSpan.FromMinutes(2))
                 {
+                    Log.Information($"(Re)Check if file is exist in {(DateTime.Now - startTime < TimeSpan.FromMinutes(2))} second before its pass 2 minutes timeout.");
                     if (IsFileExists(appfolder, filename + ".xlsx"))
                     {
                         Log.Information($"File {filename}.xlsx saved successfully...");
                         break;
                     }
-                    Task.Delay(5000);
+                    Thread.Sleep(5000);
                 }
                 if (!IsFileExists(appfolder, filename + ".xlsx"))
                 {
@@ -933,11 +955,11 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
             }
         }
 
-        private static async Task<bool> ZipandSendAsync()
+        static bool ZipandSendAsync()
         {
             try
             {
-                Log.Information("Checking and deleting existing ZIP files...");
+                Log.Information("Starting zipping file reports process...");
                 var strDsPeriod = DateManipul.GetPrevYear() + DateManipul.GetPrevMonth();
 
                 Log.Information("Moving standart excel reports file to uploaded folder...");
@@ -962,8 +984,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 {
                     Log.Information("Sending ZIP file to the API server...");
                     var strStatusCode = "0"; // varible for debugging Curl test
-                    strStatusCode = await mycUrl.SendRequestAsync();
-                    Thread.Sleep(5000);
+                    strStatusCode = mycUrl.SendRequest();
                     if (strStatusCode == "200")
                     {
                         Log.Information("DATA TRANSACTION SHARING - SELESAI");
@@ -980,8 +1001,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                     Log.Information("Sending log file to the API server...");
                     Task.Run(() => Console.WriteLine("Sending log file to the API server..."));
                     var strStatusCode = "0"; // varible for debugging Curl test
-                    strStatusCode = await mycUrl.SendRequestAsync();
-                    Thread.Sleep(10000);
+                    strStatusCode = mycUrl.SendRequest();
                     if (strStatusCode != "200")
                     {
                         throw new Exception ("Failed to send LOG file to API server...");

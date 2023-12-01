@@ -46,22 +46,22 @@ namespace iPos4DS_DTTest
 
         }
 
-        public async Task<string> SendRequestAsync()
+        public string SendRequest()
         {
             using var multipartFormDataContent = new MultipartFormDataContent();
             multipartFormDataContent.Add(new StringContent(_token), "api_token");
-            multipartFormDataContent.Add(new ByteArrayContent(await File.ReadAllBytesAsync(_targetFile)), "file", Path.GetFileName(_targetFile));
+            multipartFormDataContent.Add(new ByteArrayContent(File.ReadAllBytes(_targetFile)), "file", Path.GetFileName(_targetFile));
 
             using var httpRequestMessage = new HttpRequestMessage(HttpMethod.Post, _urlAddress)
             {
                 Content = multipartFormDataContent
             };
 
-            using var httpResponseMessage = await _httpClient.SendAsync(httpRequestMessage);
-            await Task.Delay(5000);
+            using var httpResponseMessage =  _httpClient.Send(httpRequestMessage);
+            Thread.Sleep(5000);
             httpResponseMessage.EnsureSuccessStatusCode();
 
-            var strResponseBody = await httpResponseMessage.Content.ReadAsStringAsync();
+            var strResponseBody = httpResponseMessage.Content.ReadAsStream();
             var array = httpResponseMessage.ToString().Split(':', ',');
             _httpresponses = array[1].Trim();
             return _httpresponses;
