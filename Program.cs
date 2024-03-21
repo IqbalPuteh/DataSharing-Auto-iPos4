@@ -24,6 +24,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
         static string dtName = ConfigurationManager.AppSettings["dtName"];
         static string LoginId = ConfigurationManager.AppSettings["loginId"];
         static string LoginPassword = ConfigurationManager.AppSettings["password"];
+        static string urutaandb = ConfigurationManager.AppSettings["urutaandb"];
         static string appExe = ConfigurationManager.AppSettings["erpappnamepath"];
         static string dbserveraddr = ConfigurationManager.AppSettings["dbserveraddress"].ToUpper();
         static string issandbox = ConfigurationManager.AppSettings["uploadtosandbox"].ToUpper();
@@ -292,7 +293,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 checkingele = CheckingEle(ele, step += 1, functionname);
                 if (checkingele != "") { Log.Information(checkingele); return false; }
                 Thread.Sleep(1000);
-                listele.AsListBox().Items[0].Select();
+                listele.AsListBox().Items[Convert.ToInt16(urutaandb)].Select();
 
 
                 ele = ParentEle.FindFirstChild(cf => cf.ByName("Pilih"));
@@ -414,8 +415,9 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 checkingele = CheckingEle(ele, step += 1, functionname);
                 if (checkingele != "") { Log.Information(checkingele); return false; }
                 ParentEle.SetForeground();
-                ele.AsTabItem().Select();
-                ele.AsTabItem().Click();
+                ele.Focus();
+                Thread.Sleep(1000);
+                ele.Click();
                 Thread.Sleep(1000);
 
                 //Traversing to "Lower Ribbon" from Parent Element "The Ribbon"
@@ -612,7 +614,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 DateTime startTime = DateTime.Now.AddSeconds(-0.1);
                 while (DateTime.Now - startTime < TimeSpan.FromMinutes(2))
                 {
-                    Log.Information($"(Re)Check if file is exist in {(DateTime.Now - startTime < TimeSpan.FromMinutes(2))} second before its pass 2 minutes timeout.");
+                    Log.Information($"(Re)Check if file is exist in {(DateTime.Now - startTime)} second before its pass 2 minutes timeout.");
                     if (IsFileExists(appfolder, filename + ".xlsx"))
                     {
                         Log.Information($"File {filename}.xlsx saved successfully...");
