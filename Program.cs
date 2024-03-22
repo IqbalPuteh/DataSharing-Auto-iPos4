@@ -295,7 +295,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 Thread.Sleep(1000);
                 listele.AsListBox().Items[Convert.ToInt16(urutaandb)].Select();
 
-
+                 
                 ele = ParentEle.FindFirstChild(cf => cf.ByName("Pilih"));
                 ele.AsButton().Focus();
                 Thread.Sleep(1000);
@@ -943,7 +943,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 Thread.Sleep(1000);
 
                 //Automation Id: Close, as button
-                ele = ele.FindFirstChild(cf => cf.ByAutomationId("Close"));
+                ele = ele.FindFirstChild(cf => cf.ByName("Close"));
                 checkingele = CheckingEle(ele, step += 1, functionname);
                 if (checkingele != "") { Log.Information(checkingele); return false; }
                 ele.AsButton().Invoke();
