@@ -88,11 +88,11 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 Console.WriteLine($" Aktifitas penggunakan komputer akan ter-BLOKIR sekitar 10 menit. ");
                 Console.WriteLine($"******************************************************************");
 
-#if DEBUG
-                BlockInput(false);
-#else
-                BlockInput(true);
-#endif
+//#if DEBUG
+//                BlockInput(false);
+//#else
+//                BlockInput(true);
+//#endif
                 var myFileUtil = new MyDirectoryManipulator();
                 if (!Directory.Exists(appfolder))
                 {
@@ -241,7 +241,7 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                     appx = Application.Launch(process.StartInfo);
                     window = appx.GetMainWindow(automationUIA3);
                     pid = appx.ProcessId;
-                    Thread.Sleep(30000);
+                    Thread.Sleep(25000);
                 }
                 catch { Log.Information($"[{functionname}] Error ketika mebuka mmnghandle iPos window process..."); return false; }
 
@@ -252,35 +252,35 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 if (checkingele != "") { Log.Information(checkingele); return false; }
                 ParentEle.SetForeground();
 
-                var ele = ParentEle.FindFirstChild(cf => cf.ByAutomationId("butServer", PropertyConditionFlags.None));
-                checkingele = CheckingEle(ele, step += 1, functionname);
-                if (checkingele != "") { Log.Information(checkingele); return false; }
-                ele.SetForeground();
-                //* check coordinates and try mouse click on the coordinates
-                MouseClickaction(ele);
-                Thread.Sleep(1000);
+                //var ele = ParentEle.FindFirstChild(cf => cf.ByAutomationId("butServer", PropertyConditionFlags.None));
+                //checkingele = CheckingEle(ele, step += 1, functionname);
+                //if (checkingele != "") { Log.Information(checkingele); return false; }
+                //ele.SetForeground();
+                ////* check coordinates and try mouse click on the coordinates
+                //MouseClickaction(ele);
+                //Thread.Sleep(1000);
 
-                //^ Traversing to 'lstData' descendant element from 'Koneksi Database' element
-                ele = ParentEle.FindFirstDescendant(cf => cf.ByAutomationId("lstData", PropertyConditionFlags.None));
-                checkingele = CheckingEle(ele, step += 1, functionname);
-                if (checkingele != "") { Log.Information(checkingele); return false; }
+                ////^ Traversing to 'lstData' descendant element from 'Koneksi Database' element
+                //ele = ParentEle.FindFirstDescendant(cf => cf.ByAutomationId("lstData", PropertyConditionFlags.None));
+                //checkingele = CheckingEle(ele, step += 1, functionname);
+                //if (checkingele != "") { Log.Information(checkingele); return false; }
 
-                //* Looking at 'lstData' items, and selecting server name base on item name
-                ele = ele.FindFirstDescendant(cf => cf.ByName(dbserveraddr));
-                checkingele = CheckingEle(ele, step += 1, functionname);
-                if (checkingele != "") { Log.Information(checkingele); return false; }
-                ele.Click();
-                Thread.Sleep(1000);
+                ////* Looking at 'lstData' items, and selecting server name base on item name
+                //ele = ele.FindFirstDescendant(cf => cf.ByName(dbserveraddr));
+                //checkingele = CheckingEle(ele, step += 1, functionname);
+                //if (checkingele != "") { Log.Information(checkingele); return false; }
+                //ele.Click();
+                //Thread.Sleep(1000);
 
-                ele = ParentEle.FindFirstDescendant(cf => cf.ByName("Pilih"));
-                checkingele = CheckingEle(ele, step += 1, functionname);
-                if (checkingele != "") { Log.Information(checkingele); return false; }
-                ele.AsButton().Focus();
-                Thread.Sleep(1000);
-                MouseClickaction(ele);
-                Thread.Sleep(1000); 
+                //ele = ParentEle.FindFirstDescendant(cf => cf.ByName("Pilih"));
+                //checkingele = CheckingEle(ele, step += 1, functionname);
+                //if (checkingele != "") { Log.Information(checkingele); return false; }
+                //ele.AsButton().Focus();
+                //Thread.Sleep(1000);
+                //MouseClickaction(ele);
+                //Thread.Sleep(1000); 
 
-                ele = ParentEle.FindFirstChild(cf => cf.ByName("Cari Database"));
+                var ele = ParentEle.FindFirstChild(cf => cf.ByName("Cari Database"));
                 checkingele = CheckingEle(ele, step += 1, functionname);
                 if (checkingele != "") { Log.Information(checkingele); return false; }
                 ele.AsButton().Focus();
@@ -294,8 +294,13 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 if (checkingele != "") { Log.Information(checkingele); return false; }
                 Thread.Sleep(1000);
                 listele.AsListBox().Items[Convert.ToInt16(urutaandb)].Select();
+                listele.AsListBox().Items[Convert.ToInt16(urutaandb)].Click();
 
-                 
+                /* Reserved code for database selection interaction process
+                ele = listele.FindChildAt(Convert.ToInt16(urutaandb));
+                ele.AsListBoxItem().Click();
+                */
+
                 ele = ParentEle.FindFirstChild(cf => cf.ByName("Pilih"));
                 ele.AsButton().Focus();
                 Thread.Sleep(1000);
@@ -363,7 +368,55 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
                 ele = ParentEle.FindFirstChild(cf => cf.ByName("Masuk"));
                 ele.AsButton().Focus();
                 Thread.Sleep(1000);
-                return MouseClickaction(ele);
+                MouseClickaction(ele);
+
+                /*Canceling access autoritazion req. */
+                Thread.Sleep(5000);
+                AutomationElement[] MainEl1 = window.FindAllChildren(cf => cf.ByName("i P o s", PropertyConditionFlags.MatchSubstring));
+                foreach (AutomationElement elem in MainEl1)
+                {
+                    if (elem.Properties.ProcessId != pid)
+                    {
+                        Thread.Sleep(2000);
+                    }
+                    else
+                    {
+                        ParentEle = elem; break;
+                    }
+                }
+                ele = ParentEle.FindFirstDescendant(cf => cf.ByName("Otorisasi Akses", PropertyConditionFlags.None));
+                checkingele = CheckingEle(ele, step += 1, functionname);
+                if (checkingele != "") 
+                { 
+                    Log.Information("No 'Otorisasi Akses' needed..."); 
+                    //return true;
+                }
+                else
+                {
+                    Thread.Sleep(1000);
+                    ele = ele.FindFirstChild(cf => cf.ByAutomationId("butBatal", PropertyConditionFlags.None));
+                    ele.AsButton().Focus();
+                    Thread.Sleep(1000);
+                    return MouseClickaction(ele);
+                }
+
+                if (dtID =="712")
+                {
+                    //frmReminder
+                    Thread.Sleep(2000);
+                    ele = ParentEle.FindFirstDescendant(cf => cf.ByAutomationId("frmReminder", PropertyConditionFlags.None));
+                    checkingele = CheckingEle(ele, step += 1, functionname);
+                    if (checkingele != "") { Log.Information(checkingele); return true; }
+                    Thread.Sleep(1000);
+                    ele = ele.FindFirstDescendant(cf => cf.ByName("Close"));
+                    ele.AsButton().Invoke();
+
+                    Thread.Sleep(2000);
+                    Keyboard.Press(FlaUI.Core.WindowsAPI.VirtualKeyShort.SPACE);
+                    Thread.Sleep(2000);
+                }
+
+                return true;
             }
             catch (Exception ex)
             {
