@@ -226,11 +226,13 @@ namespace iPos4DS_DTTest // Note: actual namespace depends on the project name.
             {
 
                 // Specify the path to your shortcut
-                string shortcutPath = $@"{shortcuttoipos}";
+                string shortcutPath = $@"{appExe}";
                 ProcessStartInfo startInfo = new ProcessStartInfo();
                 startInfo.FileName = shortcutPath;
                 startInfo.UseShellExecute = true;
                 startInfo.CreateNoWindow = false;
+                startInfo.Verb = "runas";
+                startInfo.WorkingDirectory = Path.GetDirectoryName(shortcutPath);
 
                 Process process = new Process();
                 process.StartInfo = startInfo;
